@@ -1,0 +1,947 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kalo Admin — Cockpit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --teal:#14b8a6; --teal-d:#0e7c72; --teal-l:#e7f6f3;
+    --navy:#0f2a36; --ink:#1f2d35; --muted:#6b7c86;
+    --bg:#f4f6f8; --card:#ffffff; --line:#e7ecef; --line-2:#eef2f4;
+    --green:#16a34a; --green-l:#e7f6ec; --amber:#d97706; --amber-l:#fdf2e3;
+    --red:#dc2626; --red-l:#fbe9e9; --blue:#2563eb; --blue-l:#e8eefc; --violet:#7c3aed; --violet-l:#f0e9fc;
+    --shadow:0 1px 2px rgba(16,42,54,.05),0 6px 18px rgba(16,42,54,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#d3dbe0;border-radius:6px;border:3px solid var(--bg)}
+  .app{display:flex;min-height:100vh}
+  /* Sidebar */
+  .side{width:248px;flex:0 0 248px;background:var(--navy);color:#cfdde4;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow-y:auto}
+  .brand{display:flex;align-items:center;gap:10px;padding:18px 18px 14px}
+  .brand .logo{width:34px;height:34px;border-radius:9px;background:#fff;display:grid;place-items:center}
+  .brand .logo svg{width:20px;height:20px}
+  .brand b{color:#fff;font-size:16px;letter-spacing:-.2px}
+  .brand .env{margin-left:auto;font-size:10px;font-weight:800;color:#9ff3e7;background:rgba(20,184,166,.16);padding:3px 7px;border-radius:999px}
+  .navgrp{padding:8px 12px 2px}
+  .navgrp .lab{font-size:10.5px;letter-spacing:.9px;text-transform:uppercase;color:#6f8a96;padding:8px 10px 4px;font-weight:800}
+  .nav{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:9px;color:#bcd0d9;cursor:pointer;font-weight:600;font-size:13.5px;margin:1px 0}
+  .nav:hover{background:rgba(255,255,255,.06);color:#fff}
+  .nav.active{background:var(--teal);color:#04201c}
+  .nav .ic{width:18px;height:18px;flex:0 0 18px}
+  .nav .ct{margin-left:auto;background:rgba(255,255,255,.14);color:#fff;font-size:11px;font-weight:800;padding:1px 7px;border-radius:999px}
+  .nav.active .ct{background:rgba(0,0,0,.18);color:#04201c}
+  .nav .ct.red{background:var(--red);color:#fff}
+  .side .foot{margin-top:auto;padding:14px;border-top:1px solid rgba(255,255,255,.08);font-size:11px;color:#7f97a2}
+  /* Main */
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .top{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.86);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:12px 22px}
+  .top h1{font-size:18px;margin:0;font-weight:800;letter-spacing:-.3px}
+  .top .sub{color:var(--muted);font-size:12.5px;margin-top:1px}
+  .search{margin-left:auto;position:relative}
+  .search input{width:240px;padding:9px 12px 9px 32px;border:1px solid var(--line);border-radius:10px;background:var(--card);font-size:13px;outline:none}
+  .search input:focus{border-color:var(--teal)}
+  .search svg{position:absolute;left:10px;top:9px;width:15px;height:15px;color:var(--muted)}
+  .bell{position:relative;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;cursor:pointer}
+  .bell .dot{position:absolute;top:-5px;right:-5px;background:var(--red);color:#fff;font-size:10px;font-weight:800;min-width:17px;height:17px;border-radius:9px;display:grid;place-items:center;padding:0 4px}
+  .me{display:flex;align-items:center;gap:9px;padding:5px 10px 5px 6px;border:1px solid var(--line);border-radius:999px;background:var(--card)}
+  .me .av{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#14b8a6,#0e7c72);color:#fff;display:grid;place-items:center;font-weight:800;font-size:12px}
+  .me .nm{font-weight:700;font-size:12.5px}.me .rl{font-size:10.5px;color:var(--muted)}
+  .wrap{padding:22px;max-width:1280px;width:100%}
+  section.page{display:none}section.page.show{display:block;animation:fade .2s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  /* Cards / grid */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 16px;box-shadow:var(--shadow)}
+  .kpi .k{font-size:11.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;display:flex;align-items:center;gap:6px}
+  .kpi .v{font-size:25px;font-weight:800;margin-top:7px;letter-spacing:-.6px}
+  .kpi .d{font-size:12px;margin-top:3px;font-weight:700}
+  .up{color:var(--green)}.down{color:var(--red)}.flat{color:var(--muted)}
+  .grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-top:16px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+  .panel .ph{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line-2)}
+  .panel .ph h3{margin:0;font-size:14.5px;font-weight:800}
+  .panel .ph .pa{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .panel .pb{padding:14px 16px}
+  /* Table */
+  table{width:100%;border-collapse:collapse}
+  thead th{text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:800;padding:10px 12px;border-bottom:1px solid var(--line)}
+  tbody td{padding:11px 12px;border-bottom:1px solid var(--line-2);font-size:13px;vertical-align:middle}
+  tbody tr{cursor:pointer}tbody tr:hover{background:#fafcfc}
+  tbody tr:last-child td{border-bottom:0}
+  .u{display:flex;align-items:center;gap:10px}
+  .ua{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:12px;color:#fff;flex:0 0 30px}
+  .uname{font-weight:700}.umail{font-size:11.5px;color:var(--muted)}
+  /* Badges */
+  .b{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:999px;white-space:nowrap}
+  .b.green{background:var(--green-l);color:#0f7a37}.b.amber{background:var(--amber-l);color:#a35a06}
+  .b.red{background:var(--red-l);color:#b91c1c}.b.blue{background:var(--blue-l);color:#1d4ed8}
+  .b.violet{background:var(--violet-l);color:#6d28d9}.b.gray{background:#eef2f4;color:#5b6b74}
+  .b.teal{background:var(--teal-l);color:var(--teal-d)}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .dot.g{background:var(--green)}.dot.a{background:var(--amber)}.dot.r{background:var(--red)}
+  .prio{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:12px}
+  /* Buttons / inputs */
+  .btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-weight:700;font-size:13px;padding:8px 13px;border-radius:9px;cursor:pointer}
+  .btn:hover{border-color:#cdd6db}
+  .btn.pri{background:var(--teal);border-color:var(--teal);color:#04201c}
+  .btn.pri:hover{background:#10a596}
+  .btn.dark{background:var(--navy);border-color:var(--navy);color:#fff}
+  .btn.danger{background:var(--red);border-color:var(--red);color:#fff}
+  .btn.sm{padding:6px 10px;font-size:12px}
+  .btn.gho{background:transparent;border-color:transparent;color:var(--teal-d)}
+  input,select,textarea{font-family:inherit;font-size:13px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;outline:none;background:#fff;width:100%;color:var(--ink)}
+  input:focus,select:focus,textarea:focus{border-color:var(--teal)}
+  label.fl{font-size:12px;font-weight:700;color:var(--muted);display:block;margin:0 0 5px}
+  .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .filters select,.filters input{width:auto;min-width:130px}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fff}
+  .seg button{border:0;background:transparent;padding:8px 12px;font-weight:700;font-size:12.5px;cursor:pointer;color:var(--muted)}
+  .seg button.on{background:var(--navy);color:#fff}
+  /* Drawer */
+  .scrim{position:fixed;inset:0;background:rgba(15,42,54,.42);opacity:0;pointer-events:none;transition:.2s;z-index:40}
+  .scrim.show{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;right:0;height:100vh;width:520px;max-width:94vw;background:var(--bg);box-shadow:-10px 0 40px rgba(16,42,54,.18);transform:translateX(100%);transition:.24s cubic-bezier(.2,.7,.2,1);z-index:50;display:flex;flex-direction:column}
+  .drawer.show{transform:none}
+  .dh{display:flex;align-items:center;gap:12px;padding:16px 18px;background:var(--card);border-bottom:1px solid var(--line)}
+  .dh .x{margin-left:auto;width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:#fff;display:grid;place-items:center;cursor:pointer}
+  .db{padding:16px 18px;overflow-y:auto;flex:1}
+  .sub-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+  .kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line-2);font-size:13px}
+  .kv:last-child{border-bottom:0}.kv .k{color:var(--muted);font-weight:600}.kv .v{font-weight:700}
+  .thread{display:flex;flex-direction:column;gap:10px}
+  .msg{max-width:86%;padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.45}
+  .msg.in{background:#fff;border:1px solid var(--line);align-self:flex-start;border-bottom-left-radius:4px}
+  .msg.out{background:var(--teal-l);border:1px solid #bfe9e2;align-self:flex-end;border-bottom-right-radius:4px}
+  .msg .mh{font-size:11px;color:var(--muted);font-weight:700;margin-bottom:3px}
+  .msg.note{background:#fff7e6;border:1px solid #f4d999;align-self:stretch;max-width:100%}
+  .chips{display:flex;gap:7px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;color:var(--ink)}
+  .chip:hover{border-color:var(--teal);color:var(--teal-d)}
+  /* Toast */
+  .toasts{position:fixed;bottom:20px;right:20px;z-index:80;display:flex;flex-direction:column;gap:9px}
+  .toast{background:var(--navy);color:#fff;padding:11px 15px;border-radius:11px;font-weight:600;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.22);display:flex;align-items:center;gap:9px;animation:slide .25s ease}
+  .toast .ic{color:#7ef0e0}
+  @keyframes slide{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
+  /* misc */
+  .row{display:flex;gap:12px;flex-wrap:wrap}.row>*{flex:1}
+  .mt{margin-top:16px}.mb8{margin-bottom:8px}.muted{color:var(--muted)}
+  .progress{height:7px;background:var(--line);border-radius:5px;overflow:hidden}
+  .progress>i{display:block;height:100%;background:var(--teal);border-radius:5px}
+  .statusline{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line-2)}
+  .statusline:last-child{border-bottom:0}
+  .feed{display:flex;gap:11px;padding:10px 0;border-bottom:1px solid var(--line-2);font-size:13px}
+  .feed:last-child{border-bottom:0}
+  .feed .fi{width:30px;height:30px;border-radius:9px;flex:0 0 30px;display:grid;place-items:center;background:var(--teal-l);color:var(--teal-d)}
+  .bars{display:flex;align-items:flex-end;gap:8px;height:120px;padding-top:20px;position:relative}
+  .bars .bar{flex:1;background:linear-gradient(180deg,#2dd0bf,#14b8a6);border-radius:6px 6px 0 0;position:relative;min-height:4px}
+  .bars .bar span{position:absolute;top:-18px;left:0;right:0;text-align:center;font-size:10.5px;font-weight:800;color:var(--muted)}
+  .bars .bar .lbl{position:absolute;bottom:-18px;left:0;right:0;text-align:center;font-size:10.5px;color:var(--muted)}
+  .funnel{display:flex;flex-direction:column;gap:8px}
+  .funnel .fr{display:flex;align-items:center;gap:10px}
+  .funnel .fb{height:30px;border-radius:7px;background:var(--teal);display:flex;align-items:center;padding:0 10px;color:#04201c;font-weight:800;font-size:12px;min-width:40px}
+  .banner{display:flex;gap:12px;align-items:center;background:linear-gradient(100deg,#0f2a36,#15414f);color:#fff;border-radius:14px;padding:14px 16px;margin-bottom:16px}
+  .banner .bi{width:40px;height:40px;border-radius:11px;background:rgba(255,255,255,.12);display:grid;place-items:center;flex:0 0 40px}
+  .banner b{font-size:14px}.banner p{margin:2px 0 0;font-size:12.5px;color:#bcd4dc}
+  .perm{display:grid;grid-template-columns:1.4fr repeat(3,1fr);gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .perm>div{padding:10px 12px;border-bottom:1px solid var(--line-2);font-size:12.5px}
+  .perm .h{background:#f7f9fa;font-weight:800;color:var(--muted);font-size:11px;text-transform:uppercase}
+  .tg{width:38px;height:22px;border-radius:999px;background:#cfd8dd;position:relative;cursor:pointer;transition:.15s;flex:0 0 38px}
+  .tg.on{background:var(--teal)}
+  .tg i{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.15s}
+  .tg.on i{left:18px}
+  .flagrow{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-2)}
+  .flagrow:last-child{border-bottom:0}
+  code{background:#eef2f4;padding:1px 5px;border-radius:5px;font-size:11.5px}
+  @media(max-width:1080px){.kpis{grid-template-columns:repeat(2,1fr)}.grid2,.grid3{grid-template-columns:1fr}.side{display:none}}
+  /* ===== UX PRO : couleur, graphiques, dynamique ===== */
+  body{font-family:'Inter','Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,sans-serif}
+  .wrap{animation:pageIn .32s ease}
+  @keyframes pageIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .kpi{position:relative;overflow:hidden;transition:transform .18s ease,box-shadow .18s ease;animation:rise .5s both}
+  .kpi:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(16,42,54,.12)}
+  .kpi .topbar{position:absolute;top:0;left:0;right:0;height:3px;opacity:.9}
+  .kpi .kic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:0 0 30px}
+  .kpi .kic svg{width:16px;height:16px}
+  .kpi .ktext{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  .kpi .v{font-variant-numeric:tabular-nums}
+  .kpi .spark{position:absolute;right:12px;bottom:11px;opacity:.9}
+  @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  .panel{transition:box-shadow .2s ease}
+  .panel:hover{box-shadow:0 10px 26px rgba(16,42,54,.09)}
+  .chart-wrap{padding:8px 2px 2px}
+  .cline{stroke-dasharray:2200;stroke-dashoffset:2200;animation:cdraw 1.3s .15s cubic-bezier(.45,0,.2,1) forwards}
+  .carea{opacity:0;animation:cfade .8s .55s ease forwards}
+  .cdot{opacity:0;animation:cfade .5s .95s ease forwards}
+  @keyframes cdraw{to{stroke-dashoffset:0}}
+  @keyframes cfade{to{opacity:1}}
+  .cdonut{animation:cdonut 1.2s .2s cubic-bezier(.45,0,.2,1) forwards}
+  @keyframes cdonut{from{stroke-dashoffset:var(--c)}to{stroke-dashoffset:var(--off)}}
+  .donutwrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .legend{display:flex;flex-direction:column;gap:9px;font-size:12.5px}
+  .legend .li{display:flex;align-items:center;gap:8px;font-weight:600}
+  .legend .ld{width:11px;height:11px;border-radius:4px;flex:0 0 11px}
+  .statpill{display:inline-flex;align-items:center;gap:6px;background:#f1f5f6;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:800}
+  .fb{transition:width 1.1s cubic-bezier(.45,0,.2,1)}
+  .feed{border-radius:8px;transition:background .15s}.feed:hover{background:#f7fafa}
+  tbody tr{transition:background .12s}
+  .btn{transition:transform .12s ease,border-color .15s,background .15s}.btn:active{transform:scale(.97)}
+  .nav{transition:background .15s,color .15s}
+  .b.live{position:relative}
+  .b.live::after{content:'';position:absolute;left:-1px;top:-1px;right:-1px;bottom:-1px;border-radius:999px;animation:halo 1.6s infinite}
+  @keyframes halo{0%{box-shadow:0 0 0 0 rgba(220,38,38,.45)}70%{box-shadow:0 0 0 7px rgba(220,38,38,0)}100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="logo"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3C8 7 6 11 6 14a6 6 0 0012 0c0-3-2-7-6-11z" fill="#14b8a6"/></svg></div>
+      <b>Kalo</b><span class="env">PROD</span>
+    </div>
+    <div id="navHost"></div>
+    <div class="foot">Kalo Admin v1 · Velqora Capital<br/><span id="conn-state">● Mode démo (données locales)</span></div>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <div>
+        <h1 id="pgTitle">Vue d'ensemble</h1>
+        <div class="sub" id="pgSub">Pilotage temps réel de Kalo</div>
+      </div>
+      <div class="search"><span id="searchIcon"></span><input id="globalSearch" placeholder="Rechercher utilisateur, ticket, email…"/></div>
+      <div class="bell" id="bell" title="Alertes SLA"><span id="bellIcon"></span><span class="dot" id="bellDot">0</span></div>
+      <div class="me" id="meChip" onclick="openLogin()" style="cursor:pointer" title="Connexion aux données live"><div class="av" id="meAv">··</div><div><div class="nm" id="meNm">Mode démo</div><div class="rl" id="meRl">Connecter en live</div></div></div>
+    </header>
+    <div class="wrap">
+      <section class="page show" id="page-dashboard"></section>
+      <section class="page" id="page-tickets"></section>
+      <section class="page" id="page-users"></section>
+      <section class="page" id="page-subs"></section>
+      <section class="page" id="page-announce"></section>
+      <section class="page" id="page-content"></section>
+      <section class="page" id="page-moderation"></section>
+      <section class="page" id="page-rgpd"></section>
+      <section class="page" id="page-audit"></section>
+      <section class="page" id="page-status"></section>
+      <section class="page" id="page-roles"></section>
+      <section class="page" id="page-settings"></section>
+      <section class="page" id="page-exports"></section>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="drawer" id="drawer"><div id="drawerInner"></div></div>
+<div class="toasts" id="toasts"></div>
+<div class="scrim" id="loginScrim" onclick="closeLogin()"></div>
+<div id="loginModal" style="position:fixed;z-index:60;top:50%;left:50%;transform:translate(-50%,-50%);width:390px;max-width:92vw;background:#fff;border-radius:16px;padding:22px;box-shadow:0 20px 60px rgba(16,42,54,.3);display:none">
+  <div style="font-weight:800;font-size:17px;margin-bottom:4px">Connexion admin</div>
+  <div class="muted" style="font-size:12.5px;margin-bottom:14px">Connecte-toi avec ton compte Kalo <b>admin</b> pour afficher tes vraies données.</div>
+  <label class="fl">Email</label><input id="loginEmail" type="email" placeholder="kada.mansouri@gmail.com"/>
+  <label class="fl" style="margin-top:10px">Mot de passe</label><input id="loginPw" type="password" placeholder="••••••••"/>
+  <div id="loginErr" style="color:var(--red);font-size:12.5px;margin-top:8px;display:none"></div>
+  <div style="display:flex;gap:8px;margin-top:14px"><button class="btn pri" style="flex:1;justify-content:center" id="loginBtn" onclick="doLogin()">Se connecter</button><button class="btn" onclick="closeLogin()">Annuler</button></div>
+  <div class="muted" style="font-size:11px;margin-top:10px">🔒 Connexion sécurisée Supabase. Seuls les comptes admin voient les données (RLS).</div>
+</div>
+
+<script>
+function ic(n){
+  const p={
+    grid:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+    ticket:'<path d="M3 8a2 2 0 012-2h14a2 2 0 012 2 2 2 0 000 4 2 2 0 010 4H5a2 2 0 01-2-2 2 2 0 000-4z"/><path d="M14 6v12"/>',
+    users:'<circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0112 0"/><path d="M16 6a3 3 0 010 6M21 20a6 6 0 00-4-5.6"/>',
+    card:'<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 10h18"/>',
+    mega:'<path d="M3 11v2a1 1 0 001 1h2l5 4V6L6 10H4a1 1 0 00-1 1z"/><path d="M16 8a5 5 0 010 8"/>',
+    trophy:'<path d="M7 4h10v4a5 5 0 01-10 0z"/><path d="M7 6H4v2a3 3 0 003 3M17 6h3v2a3 3 0 01-3 3M9 18h6M10 14h4l1 4H9z"/>',
+    shield:'<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/>',
+    lock:'<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/>',
+    list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    pulse:'<path d="M3 12h4l2 6 4-14 2 8h6"/>',
+    key:'<circle cx="8" cy="14" r="4"/><path d="M11 11l9-9M17 5l2 2M14 8l2 2"/>',
+    cog:'<circle cx="12" cy="12" r="3.2"/><path d="M19.4 13a7.6 7.6 0 000-2l2-1.5-2-3.4-2.3 1a7 7 0 00-1.7-1L14.5 2h-4l-.9 2.6a7 7 0 00-1.7 1l-2.3-1-2 3.4 2 1.5a7.6 7.6 0 000 2l-2 1.5 2 3.4 2.3-1a7 7 0 001.7 1l.9 2.6h4l.9-2.6a7 7 0 001.7-1l2.3 1 2-3.4z"/>',
+    down:'<path d="M12 3v12M7 11l5 5 5-5M5 21h14"/>',
+    search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>',
+    bell:'<path d="M6 9a6 6 0 1112 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10 20a2 2 0 004 0"/>',
+    plus:'<path d="M12 5v14M5 12h14"/>', check:'<path d="M5 12l4 4L19 6"/>',
+    clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', x:'<path d="M6 6l12 12M18 6L6 18"/>',
+    send:'<path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/>', mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+    star:'<path d="M12 3l2.6 5.6L21 9.3l-4.5 4.2L17.6 21 12 17.8 6.4 21l1.1-7.5L3 9.3l6.4-.7z"/>',
+    flag:'<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>', trash:'<path d="M4 7h16M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2M6 7l1 13h10l1-13"/>',
+    bolt:'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>', refresh:'<path d="M4 12a8 8 0 0114-5l2 2M20 12a8 8 0 01-14 5l-2-2"/><path d="M18 4v5h-5M6 20v-5h5"/>'
+  };
+  return '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+(p[n]||'')+'</svg>';
+}
+
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const H=1000*60*60;
+const now=()=>Date.now();
+const hago=h=>now()-h*H, hfromnow=h=>now()+h*H;
+function money(n){return (n).toLocaleString('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0});}
+function num(n){return (n).toLocaleString('fr-FR');}
+function initials(name){return (name||'?').split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase();}
+function avatarColor(s){const c=['#14b8a6','#2563eb','#7c3aed','#d97706','#db2777','#0891b2','#65a30d','#dc2626'];let h=0;for(const ch of (s||''))h=ch.charCodeAt(0)+((h<<5)-h);return c[Math.abs(h)%c.length];}
+function timeAgo(ts){const s=(now()-ts)/1000;if(s<60)return "à l'instant";if(s<3600)return Math.floor(s/60)+' min';if(s<86400)return Math.floor(s/3600)+' h';return Math.floor(s/86400)+' j';}
+function durTxt(ms){const neg=ms<0;ms=Math.abs(ms);const h=Math.floor(ms/H);const m=Math.floor((ms%H)/60000);let t=h>=24?Math.floor(h/24)+'j '+(h%24)+'h':(h>0?h+'h '+m+'m':m+'m');return (neg?'-':'')+t;}
+function toast(msg,icon='check'){const t=document.createElement('div');t.className='toast';t.innerHTML='<span class="ic">'+ic(icon)+'</span>'+msg;$('#toasts').appendChild(t);setTimeout(()=>{t.style.opacity=0;t.style.transform='translateX(20px)';setTimeout(()=>t.remove(),250);},2600);}
+function escapeHtml(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+const SLA={urgente:{resp:1,reso:4,lab:'Urgente',cls:'red'},haute:{resp:4,reso:24,lab:'Haute',cls:'amber'},normale:{resp:24,reso:72,lab:'Normale',cls:'blue'},basse:{resp:48,reso:120,lab:'Basse',cls:'gray'}};
+function slaState(t){
+  if(t.statut==='resolu'||t.statut==='ferme'){return {phase:'done',breached:false,atRisk:false,label:'Clos',dueAt:null,rem:0};}
+  const cfg=SLA[t.priorite];
+  if(!t.firstResponseAt){const due=t.createdAt+cfg.resp*H;const rem=due-now();return {phase:'response',dueAt:due,rem,breached:rem<0,atRisk:rem>=0&&rem<cfg.resp*H*0.25,label:'1ʳᵉ réponse'};}
+  const due=t.createdAt+cfg.reso*H;const rem=due-now();return {phase:'resolution',dueAt:due,rem,breached:rem<0,atRisk:rem>=0&&rem<cfg.reso*H*0.2,label:'Résolution'};
+}
+
+const SEED={
+  kpis:{signups7:[14,19,12,23,28,21,34],revenueMonths:[{m:'Jan',v:0},{m:'Fév',v:120},{m:'Mar',v:340},{m:'Avr',v:610},{m:'Mai',v:980},{m:'Juin',v:1460}]},
+  users:[
+    {id:'u1',name:'Camille Laurent',email:'camille.l@gmail.com',plan:'annuel',statut:'actif',joined:hago(60*24),last:hago(2),meals:142,goal:'perte',pays:'FR',trialEnds:null},
+    {id:'u2',name:'Yanis Bouchard',email:'yanis.b@outlook.fr',plan:'essai',statut:'essai',joined:hago(3*24),last:hago(5),meals:11,goal:'maintien',pays:'FR',trialEnds:hfromnow(4*24)},
+    {id:'u3',name:'Sofia Renard',email:'sofia.renard@gmail.com',plan:'mensuel',statut:'actif',joined:hago(40*24),last:hago(20),meals:88,goal:'prise_masse',pays:'BE',trialEnds:null},
+    {id:'u4',name:'Thomas Petit',email:'t.petit@free.fr',plan:'gratuit',statut:'inactif',joined:hago(25*24),last:hago(18*24),meals:6,goal:'perte',pays:'FR',trialEnds:null},
+    {id:'u5',name:'Inès Moreau',email:'ines.moreau@gmail.com',plan:'annuel',statut:'actif',joined:hago(120*24),last:hago(1),meals:301,goal:'perte',pays:'FR',trialEnds:null},
+    {id:'u6',name:'Lucas Girard',email:'lucas.girard@gmail.com',plan:'essai',statut:'essai',joined:hago(1*24),last:hago(1),meals:4,goal:'prise_masse',pays:'CH',trialEnds:hfromnow(6*24)},
+    {id:'u7',name:'Emma Dubois',email:'emma.db@icloud.com',plan:'mensuel',statut:'actif',joined:hago(15*24),last:hago(8),meals:52,goal:'maintien',pays:'FR',trialEnds:null},
+    {id:'u8',name:'Noah Lefèvre',email:'noah.lf@gmail.com',plan:'gratuit',statut:'actif',joined:hago(9*24),last:hago(30),meals:23,goal:'perte',pays:'FR',trialEnds:null},
+    {id:'u9',name:'Léa Fontaine',email:'lea.fontaine@gmail.com',plan:'annuel',statut:'annulé',joined:hago(200*24),last:hago(40*24),meals:410,goal:'maintien',pays:'FR',trialEnds:null}
+  ],
+  tickets:[
+    {id:'T-1042',sujet:'Le scan photo ne détecte rien',user:'Camille Laurent',email:'camille.l@gmail.com',canal:'in-app',priorite:'haute',statut:'ouvert',assigne:'coach.kalo93',createdAt:hago(6),firstResponseAt:hago(5),csat:null,
+     msgs:[{f:'in',a:'Camille',t:hago(6),x:'Bonjour, depuis ce matin le scan photo affiche « analyse… » puis ne renvoie aucun résultat. Android.'},{f:'out',a:'Support',t:hago(5),x:'Bonjour Camille, merci. Pouvez-vous me dire votre modèle de téléphone et si vous êtes en wifi ou 4G ?'}]},
+    {id:'T-1041',sujet:'Remboursement abonnement annuel',user:'Léa Fontaine',email:'lea.fontaine@gmail.com',canal:'email',priorite:'normale',statut:'en_attente',assigne:'coach.kalo93',createdAt:hago(30),firstResponseAt:hago(28),csat:null,
+     msgs:[{f:'in',a:'Léa',t:hago(30),x:"Je souhaite être remboursée, je n'utilise plus l'app."},{f:'out',a:'Support',t:hago(28),x:'Bonjour Léa, je transmets votre demande. Le remboursement est géré côté store, je reviens vers vous.'}]},
+    {id:'T-1040',sujet:'Calories surévaluées sur les salades',user:'Sofia Renard',email:'sofia.renard@gmail.com',canal:'in-app',priorite:'basse',statut:'ouvert',assigne:null,createdAt:hago(50),firstResponseAt:null,csat:null,
+     msgs:[{f:'in',a:'Sofia',t:hago(50),x:"L'IA met souvent trop de calories sur mes salades composées."}]},
+    {id:'T-1039',sujet:'Impossible de se connecter (mot de passe)',user:'Yanis Bouchard',email:'yanis.b@outlook.fr',canal:'email',priorite:'urgente',statut:'ouvert',assigne:null,createdAt:hago(2.2),firstResponseAt:null,csat:null,
+     msgs:[{f:'in',a:'Yanis',t:hago(2.2),x:"Je n'arrive plus du tout à me connecter, ça dit « identifiants invalides »."}]},
+    {id:'T-1038',sujet:'Suggestion : mode jeûne intermittent',user:'Inès Moreau',email:'ines.moreau@gmail.com',canal:'in-app',priorite:'basse',statut:'ouvert',assigne:'coach.kalo93',createdAt:hago(70),firstResponseAt:hago(68),csat:null,
+     msgs:[{f:'in',a:'Inès',t:hago(70),x:"Ce serait top d'avoir un mode jeûne intermittent avec fenêtre horaire."},{f:'out',a:'Support',t:hago(68),x:"Merci Inès, excellente idée — je l'ajoute à notre backlog produit !"}]},
+    {id:'T-1037',sujet:'Double facturation ce mois-ci',user:'Emma Dubois',email:'emma.db@icloud.com',canal:'email',priorite:'haute',statut:'resolu',assigne:'coach.kalo93',createdAt:hago(96),firstResponseAt:hago(95),resolvedAt:hago(80),csat:5,
+     msgs:[{f:'in',a:'Emma',t:hago(96),x:"J'ai été débitée deux fois en juin."},{f:'out',a:'Support',t:hago(95),x:'Désolé Emma, je vérifie immédiatement.'},{f:'out',a:'Support',t:hago(80),x:"C'était un doublon côté store, le remboursement est lancé. Encore désolé !"}]},
+    {id:'T-1036',sujet:"L'app plante au démarrage (iPhone 12)",user:'Lucas Girard',email:'lucas.girard@gmail.com',canal:'store',priorite:'urgente',statut:'resolu',assigne:'coach.kalo93',createdAt:hago(120),firstResponseAt:hago(119.5),resolvedAt:hago(110),csat:4,
+     msgs:[{f:'in',a:'Lucas',t:hago(120),x:"Crash immédiat à l'ouverture depuis la dernière mise à jour."},{f:'out',a:'Support',t:hago(110),x:'Corrigé en 1.0.3, merci du signalement !'}]}
+  ],
+  announces:[
+    {id:'a1',titre:'Nouveau : scan du frigo 🥑',type:'In-app',segment:'Tous',statut:'Programmée',when:hfromnow(48),txt:'Photographie ton frigo, Kalo te propose une recette.'},
+    {id:'a2',titre:"-30% sur l'annuel ce week-end",type:'Push',segment:'Essai en cours',statut:'Brouillon',when:null,txt:'Offre limitée pour passer Premium.'},
+    {id:'a3',titre:'Maintenance prévue dimanche 2h',type:'Bannière',segment:'Tous',statut:'Envoyée',when:hago(72),txt:'Courte interruption possible.'}
+  ],
+  challenges:[{n:'Logger 5 jours',actif:true,part:128},{n:'Logger 10 repas',actif:true,part:96},{n:'8 verres sur 3 jours',actif:true,part:74},{n:'Série de 7 jours',actif:false,part:0}],
+  moderation:[
+    {id:'m1',type:'Repas signalé',obj:'Photo inappropriée — repas #4821',par:'auto-IA',statut:'À revoir',when:hago(4)},
+    {id:'m2',type:'Avis store',obj:'Langage abusif dans un avis 1★',par:'u8',statut:'À revoir',when:hago(26)}
+  ],
+  rgpd:[
+    {id:'r1',type:'Suppression',user:'Thomas Petit',email:'t.petit@free.fr',statut:'En cours',createdAt:hago(120),dueAt:hfromnow(28*24)},
+    {id:'r2',type:'Accès / export',user:'Léa Fontaine',email:'lea.fontaine@gmail.com',statut:'Nouveau',createdAt:hago(20),dueAt:hfromnow(29*24)},
+    {id:'r3',type:'Suppression',user:'Compte test',email:'old@kalo.app',statut:'Traité',createdAt:hago(800),dueAt:hago(60*24)}
+  ],
+  audit:[
+    {who:'coach.kalo93',act:'A résolu le ticket T-1037',when:hago(80)},
+    {who:'coach.kalo93',act:'A accordé Premium à Inès Moreau',when:hago(48)},
+    {who:'système',act:'Sauvegarde quotidienne BDD réussie',when:hago(10)},
+    {who:'coach.kalo93',act:'A publié l\'annonce « Maintenance dimanche »',when:hago(72)},
+    {who:'coach.kalo93',act:'A modifié le prix annuel (39,99€)',when:hago(200)}
+  ],
+  services:[
+    {n:'API Kalo',s:'ok',d:'Opérationnel · 142 ms'},
+    {n:'IA Gemini (scan)',s:'ok',d:'Opérationnel · 1.8 s moy.'},
+    {n:'Base de données (Supabase EU)',s:'ok',d:'Opérationnel'},
+    {n:'Authentification',s:'ok',d:'Opérationnel'},
+    {n:'Paiements (RevenueCat)',s:'warn',d:'Non connecté — à brancher'}
+  ],
+  incidents:[{t:'Aucun incident en cours',d:'Dernier incident : 12 juin (latence IA) — résolu en 35 min',s:'ok'}],
+  roles:[
+    {who:'coach.kalo93@gmail.com',role:'Owner',a2f:true,last:hago(1)},
+    {who:'support@kalo.app',role:'Support',a2f:false,last:hago(30)},
+    {who:'compta@velqora.com',role:'Lecture seule',a2f:true,last:hago(240)}
+  ],
+  flags:[
+    {n:'Scan du frigo (beta)',k:'fridge_scan',on:false,d:'Active la recette depuis une photo de frigo'},
+    {n:'Mode resto',k:'resto_mode',on:false,d:'Suggestions par enseigne'},
+    {n:'Parrainage',k:'referral',on:true,d:'Offre 1 mois / gagne 1 mois'},
+    {n:'Paywall A/B — essai 7j',k:'paywall_7d',on:true,d:'Variante essai 7 jours vs 3 jours'},
+    {n:'Mode maintenance',k:'maintenance',on:false,d:'Affiche un écran de maintenance dans l\'app'}
+  ]
+};
+
+let S=load();
+function load(){try{const r=localStorage.getItem('kalo_admin_v1');if(r)return JSON.parse(r);}catch(e){}return JSON.parse(JSON.stringify(SEED));}
+function save(){try{localStorage.setItem('kalo_admin_v1',JSON.stringify(S));}catch(e){}}
+function resetData(){localStorage.removeItem('kalo_admin_v1');S=JSON.parse(JSON.stringify(SEED));renderAll();go('dashboard');toast('Données démo réinitialisées','refresh');}
+
+/* NAV */
+const NAVDEF=[
+  ['Pilotage',[['dashboard','grid',"Vue d'ensemble",null]]],
+  ['Support',[['tickets','ticket','Tickets & SLA','nav-breach']]],
+  ['Croissance',[['users','users','Utilisateurs','nav-users'],['subs','card','Abonnements',null],['announce','mega','Annonces',null],['content','trophy','Contenu & jeu',null]]],
+  ['Conformité',[['moderation','shield','Modération',null],['rgpd','lock','RGPD / DSAR','nav-rgpd'],['audit','list',"Journal d'audit",null]]],
+  ['Système',[['status','pulse','Santé & statut',null],['roles','key','Rôles & accès',null],['settings','cog','Réglages',null],['exports','down','Exports',null]]]
+];
+function buildNav(){
+  $('#navHost').innerHTML=NAVDEF.map(g=>`<div class="navgrp"><div class="lab">${g[0]}</div>${g[1].map(n=>`<div class="nav${n[0]==='dashboard'?' active':''}" data-p="${n[0]}">${ic(n[1])}<span>${n[2]}</span>${n[3]?`<span class="ct${n[3]==='nav-breach'?' red':''}" id="${n[3]}">0</span>`:''}</div>`).join('')}</div>`).join('');
+  $$('.nav').forEach(n=>n.addEventListener('click',()=>go(n.dataset.p)));
+}
+
+const TITLES={dashboard:["Vue d'ensemble",'Pilotage temps réel de Kalo'],tickets:['Tickets & SLA','File de support et respect des délais'],users:['Utilisateurs','Base utilisateurs et actions'],subs:['Abonnements & revenus','Suivi MRR, essais et churn'],announce:['Annonces & broadcast','Communication in-app et push'],content:['Contenu & gamification','Défis, quêtes, succès, recettes'],moderation:['Modération','File de signalements'],rgpd:['RGPD / DSAR',"Demandes d'accès et de suppression"],audit:["Journal d'audit",'Traçabilité des actions admin'],status:['Santé & statut','État des services et incidents'],roles:['Rôles & accès','Administrateurs et permissions'],settings:['Réglages & feature flags',"Configuration de l'app"],exports:['Exports & rapports','Téléchargements CSV']};
+function go(p){
+  $$('.nav').forEach(n=>n.classList.toggle('active',n.dataset.p===p));
+  $$('.page').forEach(s=>s.classList.remove('show'));
+  $('#page-'+p).classList.add('show');
+  $('#pgTitle').textContent=TITLES[p][0];$('#pgSub').textContent=TITLES[p][1];
+  if(p==='dashboard')renderDashboard();
+  window.scrollTo(0,0);
+}
+
+function renderDashboard(){
+  const u=S.users;
+  const active7=u.filter(x=>x.last>hago(7*24)).length;
+  const premium=u.filter(x=>['annuel','mensuel'].includes(x.plan)&&x.statut==='actif').length;
+  const trials=u.filter(x=>x.statut==='essai').length;
+  const mrr=u.filter(x=>x.statut==='actif').reduce((a,x)=>a+(x.plan==='annuel'?3.33:x.plan==='mensuel'?7.99:0),0);
+  const conv=Math.round(premium/(premium+trials+4)*100);
+  const breach=S.tickets.filter(t=>slaState(t).breached).length;
+  const scans=S.users.reduce((a,x)=>a+x.meals,0);
+  const C={teal:'#14b8a6',blue:'#2563eb',violet:'#7c3aed',amber:'#d97706',green:'#16a34a',red:'#dc2626'};
+  const open=S.tickets.filter(t=>!['resolu','ferme'].includes(t.statut));
+  const within=open.length?Math.round((open.length-breach)/open.length*100):100;
+  const avgFirst=avg(S.tickets.filter(t=>t.firstResponseAt).map(t=>t.firstResponseAt-t.createdAt));
+  const csats=S.tickets.filter(t=>t.csat).map(t=>t.csat);
+  const k=[
+    {l:'Utilisateurs',raw:u.length,fmt:'num',final:num(u.length),d:'+34 cette semaine',dc:'up',ic:'users',c:C.blue,sp:S.kpis.signups7},
+    {l:'Actifs 7 jours',raw:active7,fmt:'num',final:num(active7),d:Math.round(active7/u.length*100)+'% de la base',dc:'flat',ic:'pulse',c:C.teal,sp:[3,5,4,6,5,7,active7]},
+    {l:'Abonnés Premium',raw:premium,fmt:'num',final:num(premium),d:'+'+premium+' actifs',dc:'up',ic:'star',c:C.violet,sp:[1,1,2,2,3,3,premium]},
+    {l:'Essais en cours',raw:trials,fmt:'num',final:num(trials),d:'à convertir',dc:'flat',ic:'clock',c:C.amber,sp:[2,1,3,2,3,2,trials]},
+    {l:'MRR estimé',raw:Math.round(mrr),fmt:'money',final:money(mrr),d:'+18% vs M-1',dc:'up',ic:'card',c:C.green,sp:S.kpis.revenueMonths.map(x=>x.v)},
+    {l:'Conversion → payant',raw:conv,fmt:'pct',final:conv+'%',d:'objectif 30%',dc:'flat',ic:'bolt',c:C.teal,sp:[10,12,14,18,conv]},
+    {l:'Scans IA (cumul)',raw:scans,fmt:'num',final:num(scans),d:'≈ '+money(scans*0.003)+' coût',dc:'flat',ic:'grid',c:C.blue,sp:[200,400,700,1000,scans]},
+    {l:'Tickets en retard SLA',raw:breach,fmt:'num',final:num(breach),d:breach?'à traiter vite':'tout est OK',dc:breach?'down':'up',ic:'ticket',c:breach?C.red:C.green,sp:null}
+  ];
+  $('#page-dashboard').innerHTML=`
+    ${LIVE ? `<div class="banner" style="background:linear-gradient(100deg,#0e7c72,#16a34a)"><div class="bi">${ic('pulse')}</div><div style="flex:1"><b>● Données live — connecté à Supabase.</b><p>${LIVEINFO.users} utilisateur(s) · ${LIVEINFO.events} événements · ${LIVEINFO.meals} repas loggés · ${LIVEINFO.scans} scans réussis · session moy. ${LIVEINFO.avgSession}s</p></div></div>` : `<div class="banner"><div class="bi">${ic('bolt')}</div><div style="flex:1"><b>Mode démo — données locales.</b><p>Clique sur ton profil (en haut à droite) pour te connecter et afficher tes vraies données.</p></div><button class="btn" style="background:rgba(255,255,255,.14);border-color:transparent;color:#fff" onclick="openLogin()">Connecter en live</button></div>`}
+    <div class="kpis">${k.map((x,i)=>`<div class="kpi" style="animation-delay:${(i*0.045).toFixed(2)}s"><div class="topbar" style="background:${x.c}"></div><div class="k"><div class="kic" style="background:${x.c}1f;color:${x.c}">${ic(x.ic)}</div><span class="ktext">${x.l}</span></div><div class="v" data-to="${x.raw}" data-fmt="${x.fmt}" data-final="${x.final}">${x.final}</div><div class="d ${x.dc}">${x.d}</div>${x.sp?`<div class="spark">${sparkline(x.sp,x.c)}</div>`:''}</div>`).join('')}</div>
+    <div class="grid2">
+      <div class="panel"><div class="ph"><h3>Inscriptions · 7 derniers jours</h3><span class="statpill" style="color:var(--teal-d)">▲ +34</span></div><div class="pb"><div class="chart-wrap">${areaChart(S.kpis.signups7,{labels:['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'],color:'#14b8a6'})}</div></div></div>
+      <div class="panel"><div class="ph"><h3>Conversion essai → payant</h3></div><div class="pb"><div class="donutwrap">${donut(conv,{size:130,color:'#7c3aed',center:conv+'%',sub:'payant'})}<div class="legend">
+        <div class="li"><span class="ld" style="background:#7c3aed"></span>Convertis en payant</div>
+        <div class="li"><span class="ld" style="background:#eef2f4"></span>Encore en essai</div>
+        <div class="muted" style="margin-top:4px">Objectif : <b style="color:var(--ink)">30%</b></div>
+      </div></div></div></div>
+    </div>
+    <div class="grid2">
+      <div class="panel"><div class="ph"><h3>Revenu mensuel (€)</h3><span class="statpill" style="color:var(--green)">▲ croissance</span></div><div class="pb"><div class="chart-wrap">${areaChart(S.kpis.revenueMonths.map(x=>x.v),{labels:S.kpis.revenueMonths.map(x=>x.m),color:'#16a34a'})}</div></div></div>
+      <div class="panel"><div class="ph"><h3>Tunnel de conversion</h3></div><div class="pb"><div class="funnel">${[['Visiteurs',1000,'#0f2a36'],['Inscrits',420,'#15414f'],['Onboarding fini',360,'#0e7c72'],['Essai démarré',150,'#14b8a6'],['Payant',46,'#2dd0bf']].map(f=>`<div class="fr"><div style="width:110px;color:var(--muted);font-size:12px;font-weight:700">${f[0]}</div><div class="fb" style="width:${f[1]/1000*100}%;background:${f[2]};color:${f[1]>200?'#fff':'#04201c'}">${num(f[1])}</div></div>`).join('')}</div></div></div>
+    </div>
+    <div class="grid2">
+      <div class="panel"><div class="ph"><h3>Activité récente</h3><a class="btn gho sm" onclick="go('audit')">Tout voir</a></div><div class="pb">${S.audit.slice(0,5).map(a=>`<div class="feed" style="padding-left:6px;padding-right:6px"><div class="fi">${ic('bolt')}</div><div><div style="font-weight:600">${escapeHtml(a.act)}</div><div class="muted" style="font-size:11.5px">${a.who} · il y a ${timeAgo(a.when)}</div></div></div>`).join('')}</div></div>
+      <div class="panel"><div class="ph"><h3>SLA support</h3><a class="btn gho sm" onclick="go('tickets')">File complète</a></div><div class="pb"><div class="donutwrap">${donut(within,{size:122,color:within>=90?'#16a34a':'#d97706',center:within+'%',sub:'dans les délais'})}<div class="legend">
+        <div class="li"><span class="ld" style="background:#2563eb"></span>${open.length} tickets ouverts</div>
+        <div class="li"><span class="ld" style="background:#dc2626"></span>${breach} en retard (breach)</div>
+        <div class="li"><span class="ld" style="background:#0e7c72"></span>1ʳᵉ réponse ${durTxt(avgFirst)}</div>
+        <div class="li"><span class="ld" style="background:#d97706"></span>CSAT ${csats.length?avg(csats).toFixed(1)+'/5':'—'}</div>
+      </div></div></div></div>
+    </div>`;
+  setTimeout(countUp,30);
+}
+function slaSummaryCards(){
+  const open=S.tickets.filter(t=>!['resolu','ferme'].includes(t.statut));
+  const breach=open.filter(t=>slaState(t).breached).length;
+  const resolved=S.tickets.filter(t=>t.resolvedAt);
+  const avgFirst=avg(S.tickets.filter(t=>t.firstResponseAt).map(t=>t.firstResponseAt-t.createdAt));
+  const csats=S.tickets.filter(t=>t.csat).map(t=>t.csat);
+  return [
+    ['Tickets ouverts',num(open.length),'&nbsp;','flat'],
+    ['En retard (breach)',num(breach),breach?'action requise':'aucun',breach?'down':'up'],
+    ['1ʳᵉ réponse moy.',durTxt(avgFirst),'cible < 4h','flat'],
+    ['CSAT',csats.length?(avg(csats)).toFixed(1)+'/5':'—','satisfaction','up']
+  ].map(x=>`<div class="kpi"><div class="k">${x[0]}</div><div class="v">${x[1]}</div><div class="d ${x[3]||'flat'}">${x[2]}</div></div>`).join('');
+}
+function avg(arr){if(!arr.length)return 0;return arr.reduce((a,b)=>a+b,0)/arr.length;}
+
+/* ===== Charts SVG inline (animés, sans dépendance) ===== */
+let _cid=0;
+function smoothPath(pts){
+  if(pts.length<2)return pts.length?('M'+pts[0][0]+','+pts[0][1]):'';
+  let d='M'+pts[0][0].toFixed(1)+','+pts[0][1].toFixed(1);
+  for(let i=0;i<pts.length-1;i++){
+    const p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||pts[i+1];
+    const c1x=p1[0]+(p2[0]-p0[0])/6,c1y=p1[1]+(p2[1]-p0[1])/6;
+    const c2x=p2[0]-(p3[0]-p1[0])/6,c2y=p2[1]-(p3[1]-p1[1])/6;
+    d+=' C'+c1x.toFixed(1)+','+c1y.toFixed(1)+' '+c2x.toFixed(1)+','+c2y.toFixed(1)+' '+p2[0].toFixed(1)+','+p2[1].toFixed(1);
+  }
+  return d;
+}
+function areaChart(values,opts){
+  opts=opts||{};const W=600,Hh=190,padT=18,padB=28,padX=12;
+  const max=Math.max(...values,1),n=values.length;
+  const X=i=>padX+i*(W-2*padX)/Math.max(n-1,1);
+  const Y=v=>padT+(1-v/max)*(Hh-padT-padB);
+  const pts=values.map((v,i)=>[X(i),Y(v)]);
+  const line=smoothPath(pts);
+  const area=line+' L'+X(n-1).toFixed(1)+','+(Hh-padB)+' L'+X(0).toFixed(1)+','+(Hh-padB)+' Z';
+  const id='cg'+(_cid++),col=opts.color||'#14b8a6',labels=opts.labels||[];
+  const grid=[0.5,1].map(g=>{const gy=padT+(1-g)*(Hh-padT-padB);return '<line x1="'+padX+'" y1="'+gy.toFixed(1)+'" x2="'+(W-padX)+'" y2="'+gy.toFixed(1)+'" stroke="#edf1f3" stroke-width="1"/>';}).join('');
+  const dots=pts.map((p,i)=>'<circle class="cdot" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="4" fill="#fff" stroke="'+col+'" stroke-width="2.5"><title>'+(labels[i]||('#'+(i+1)))+' : '+num(values[i])+'</title></circle>').join('');
+  const lab=labels.map((l,i)=>'<text x="'+X(i).toFixed(1)+'" y="'+(Hh-8)+'" text-anchor="middle" font-size="12" fill="#9aa8b0" font-weight="600">'+l+'</text>').join('');
+  return '<svg viewBox="0 0 '+W+' '+Hh+'" style="width:100%;height:auto;display:block">'
+   +'<defs><linearGradient id="'+id+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+col+'" stop-opacity="0.30"/><stop offset="1" stop-color="'+col+'" stop-opacity="0"/></linearGradient></defs>'
+   +grid+'<path d="'+area+'" fill="url(#'+id+')" class="carea"/><path d="'+line+'" fill="none" stroke="'+col+'" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="cline"/>'+dots+lab+'</svg>';
+}
+function donut(pct,opts){
+  opts=opts||{};const size=opts.size||120,sw=opts.sw||14,r=(size-sw)/2,c=2*Math.PI*r,cx=size/2,col=opts.color||'#14b8a6';
+  const off=c*(1-Math.max(0,Math.min(100,pct))/100);
+  const cyT=opts.sub?(cx-2):(cx+size*0.09);
+  return '<svg viewBox="0 0 '+size+' '+size+'" style="width:'+size+'px;height:'+size+'px;flex:0 0 '+size+'px">'
+   +'<circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="#eef2f4" stroke-width="'+sw+'"/>'
+   +'<circle class="cdonut" cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="'+col+'" stroke-width="'+sw+'" stroke-linecap="round" stroke-dasharray="'+c.toFixed(1)+'" stroke-dashoffset="'+off.toFixed(1)+'" transform="rotate(-90 '+cx+' '+cx+')" style="--c:'+c.toFixed(1)+';--off:'+off.toFixed(1)+'"/>'
+   +'<text x="'+cx+'" y="'+cyT.toFixed(1)+'" text-anchor="middle" font-size="'+(size*0.26).toFixed(0)+'" font-weight="800" fill="#0f2a36" dominant-baseline="middle">'+(opts.center!=null?opts.center:pct+'%')+'</text>'
+   +(opts.sub?'<text x="'+cx+'" y="'+(cx+size*0.17).toFixed(1)+'" text-anchor="middle" font-size="'+(size*0.1).toFixed(0)+'" fill="#6b7c86" font-weight="600">'+opts.sub+'</text>':'')
+   +'</svg>';
+}
+function sparkline(values,color){
+  const W=92,Hh=30,max=Math.max(...values),min=Math.min(...values),n=values.length,rng=(max-min)||1;
+  const pts=values.map((v,i)=>(i*(W/Math.max(n-1,1))).toFixed(1)+','+(Hh-((v-min)/rng)*(Hh*0.8)-3).toFixed(1)).join(' ');
+  return '<svg viewBox="0 0 '+W+' '+Hh+'" style="width:80px;height:28px"><polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/></svg>';
+}
+function countUp(){
+  $$('#page-dashboard [data-to]').forEach(el=>{
+    const to=parseFloat(el.getAttribute('data-to')),fmt=el.getAttribute('data-fmt'),fin=el.getAttribute('data-final');
+    if(isNaN(to)){if(fin)el.textContent=fin;return;}
+    const t0=performance.now(),dur=850;
+    function step(t){const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3),val=to*e;
+      el.textContent=fmt==='money'?money(Math.round(val)):fmt==='pct'?Math.round(val)+'%':num(Math.round(val));
+      if(p<1)requestAnimationFrame(step);else el.textContent=fin;}
+    requestAnimationFrame(step);
+  });
+}
+
+let ticketFilter={statut:'',priorite:'',canal:'',q:''};
+function renderTickets(){
+  const f=ticketFilter;
+  let list=S.tickets.filter(t=>(!f.statut||t.statut===f.statut)&&(!f.priorite||t.priorite===f.priorite)&&(!f.canal||t.canal===f.canal)&&(!f.q||(t.sujet+t.user+t.email+t.id).toLowerCase().includes(f.q.toLowerCase())));
+  const order={urgente:0,haute:1,normale:2,basse:3};
+  list.sort((a,b)=>{const oa=['resolu','ferme'].includes(a.statut)?1:0,ob=['resolu','ferme'].includes(b.statut)?1:0;if(oa!==ob)return oa-ob;const ba=slaState(a).breached?0:1,bb=slaState(b).breached?0:1;if(ba!==bb)return ba-bb;return order[a.priorite]-order[b.priorite];});
+  $('#page-tickets').innerHTML=`
+    <div class="kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">${slaSummaryCards()}</div>
+    <div class="panel"><div class="ph"><h3>File de tickets</h3>
+      <div class="pa"><span class="b gray">SLA · Urgent 1h/4h · Haut 4h/24h · Normal 24h/72h · Bas 48h/5j</span>
+        <button class="btn pri sm" onclick="newTicket()">${ic('plus')} Nouveau</button></div></div>
+      <div class="pb">
+        <div class="filters">
+          <select onchange="ticketFilter.statut=this.value;renderTickets()"><option value="">Tous statuts</option><option value="ouvert">Ouvert</option><option value="en_attente">En attente</option><option value="resolu">Résolu</option><option value="ferme">Fermé</option></select>
+          <select onchange="ticketFilter.priorite=this.value;renderTickets()"><option value="">Toutes priorités</option><option value="urgente">Urgente</option><option value="haute">Haute</option><option value="normale">Normale</option><option value="basse">Basse</option></select>
+          <select onchange="ticketFilter.canal=this.value;renderTickets()"><option value="">Tous canaux</option><option value="in-app">In-app</option><option value="email">Email</option><option value="store">Store</option></select>
+          <input placeholder="Rechercher…" value="${escapeHtml(f.q)}" oninput="ticketFilter.q=this.value;renderTickets()" style="min-width:200px"/>
+          <span class="muted" style="margin-left:auto">${list.length} ticket(s)</span>
+        </div>
+        <table><thead><tr><th>Ticket</th><th>Demandeur</th><th>Canal</th><th>Priorité</th><th>Statut</th><th>SLA</th><th>Créé</th></tr></thead>
+        <tbody>${list.map(t=>ticketRow(t)).join('')||'<tr><td colspan="7" class="muted" style="text-align:center;padding:30px">Aucun ticket.</td></tr>'}</tbody></table>
+      </div></div>`;
+}
+function ticketRow(t){
+  const st=slaState(t);
+  const stCls={ouvert:'blue',en_attente:'amber',resolu:'green',ferme:'gray'}[t.statut];
+  const stLab={ouvert:'Ouvert',en_attente:'En attente',resolu:'Résolu',ferme:'Fermé'}[t.statut];
+  const pr=SLA[t.priorite];const prCol={red:'var(--red)',amber:'var(--amber)',blue:'var(--blue)',gray:'var(--muted)'}[pr.cls];
+  let sla;
+  if(st.phase==='done')sla='<span class="b green">✓ Respecté</span>';
+  else if(st.breached)sla=`<span class="b red" data-due="${t.id}">● En retard ${durTxt(st.rem)}</span>`;
+  else sla=`<span class="b ${st.atRisk?'amber':'gray'}" data-due="${t.id}">${st.label} dans ${durTxt(st.rem)}</span>`;
+  return `<tr onclick="openTicket('${t.id}')">
+    <td><div style="font-weight:800">${t.id}</div><div class="muted" style="font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.sujet)}</div></td>
+    <td><div class="u"><div class="ua" style="width:26px;height:26px;font-size:11px;background:${avatarColor(t.user)}">${initials(t.user)}</div><div class="uname" style="font-size:12.5px">${escapeHtml(t.user)}</div></div></td>
+    <td><span class="b gray">${t.canal}</span></td>
+    <td><span class="prio" style="color:${prCol}">${t.priorite==='urgente'?'🔴':t.priorite==='haute'?'🟠':t.priorite==='normale'?'🔵':'⚪'} ${pr.lab}</span></td>
+    <td><span class="b ${stCls}">${stLab}</span></td>
+    <td>${sla}</td>
+    <td class="muted">il y a ${timeAgo(t.createdAt)}</td>
+  </tr>`;
+}
+const CANNED=[
+  ['Accusé réception','Bonjour, merci pour votre message. Je prends en charge votre demande et reviens vers vous très vite. — L\'équipe Kalo 🥑'],
+  ["Demande d'infos",'Pourriez-vous me préciser votre modèle de téléphone, la version de l\'app et une capture d\'écran si possible ? Merci !'],
+  ['Bug transmis','Merci, le souci est identifié et transmis à l\'équipe technique. Un correctif arrive dans une prochaine mise à jour.'],
+  ['Remboursement','Le remboursement est géré par l\'App Store / Google Play. Je vous accompagne pas à pas pour le demander.'],
+  ['Clôture','Ravi d\'avoir pu vous aider ! Je clôture ce ticket, n\'hésitez pas à revenir vers nous. Belle journée 🥑']
+];
+function openTicket(id){
+  const t=S.tickets.find(x=>x.id===id);if(!t)return;
+  const st=slaState(t);
+  const slaBox=st.phase==='done'?'<span class="b green">SLA respecté</span>':st.breached?`<span class="b red">⏰ Dépassé de ${durTxt(st.rem)}</span>`:`<span class="b ${st.atRisk?'amber':'teal'}">${st.label} · reste ${durTxt(st.rem)}</span>`;
+  drawer(`
+    <div class="dh"><div style="flex:1"><div style="font-weight:800;font-size:16px">${t.id} · ${escapeHtml(t.sujet)}</div><div class="muted" style="font-size:12px">${escapeHtml(t.user)} · ${escapeHtml(t.email)}</div></div><div class="x" onclick="closeDrawer()">${ic('x')}</div></div>
+    <div class="db">
+      <div class="sub-card">
+        <div class="row" style="gap:8px">
+          <div><label class="fl">Statut</label><select onchange="setTicket('${t.id}','statut',this.value)">${['ouvert','en_attente','resolu','ferme'].map(s=>`<option value="${s}" ${t.statut===s?'selected':''}>${({ouvert:'Ouvert',en_attente:'En attente',resolu:'Résolu',ferme:'Fermé'})[s]}</option>`).join('')}</select></div>
+          <div><label class="fl">Priorité</label><select onchange="setTicket('${t.id}','priorite',this.value)">${Object.keys(SLA).map(s=>`<option value="${s}" ${t.priorite===s?'selected':''}>${SLA[s].lab}</option>`).join('')}</select></div>
+          <div><label class="fl">Assigné à</label><select onchange="setTicket('${t.id}','assigne',this.value)"><option value="">Non assigné</option><option ${t.assigne==='coach.kalo93'?'selected':''}>coach.kalo93</option><option value="support" ${t.assigne==='support'?'selected':''}>support</option></select></div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">${slaBox}<span class="b gray">${t.canal}</span><span class="muted" style="font-size:12px">Ouvert il y a ${timeAgo(t.createdAt)}</span></div>
+      </div>
+      <div class="sub-card"><div class="thread">${t.msgs.map(m=>msgHtml(m)).join('')}</div></div>
+      <div class="sub-card">
+        <label class="fl">Réponses types</label>
+        <div class="chips mb8">${CANNED.map((c,i)=>`<div class="chip" onclick="document.getElementById('t-reply').value=CANNED[${i}][1]">${c[0]}</div>`).join('')}</div>
+        <textarea id="t-reply" rows="3" placeholder="Votre réponse au client…"></textarea>
+        <div style="display:flex;gap:8px;margin-top:9px;flex-wrap:wrap">
+          <button class="btn pri" onclick="replyTicket('${t.id}',false)">${ic('send')} Envoyer</button>
+          <button class="btn" onclick="replyTicket('${t.id}',true)">${ic('flag')} Note interne</button>
+          ${t.statut!=='resolu'?`<button class="btn" style="margin-left:auto" onclick="setTicket('${t.id}','statut','resolu',true)">${ic('check')} Marquer résolu</button>`:''}
+        </div>
+      </div>
+    </div>`);
+}
+function msgHtml(m){
+  if(m.f==='note')return `<div class="msg note"><div class="mh">📝 Note interne · ${m.a} · il y a ${timeAgo(m.t)}</div>${escapeHtml(m.x)}</div>`;
+  return `<div class="msg ${m.f}"><div class="mh">${m.f==='out'?'🥑 ':''}${m.a} · il y a ${timeAgo(m.t)}</div>${escapeHtml(m.x)}</div>`;
+}
+function replyTicket(id,note){
+  const t=S.tickets.find(x=>x.id===id);const v=$('#t-reply').value.trim();if(!v)return;
+  t.msgs.push({f:note?'note':'out',a:note?'coach.kalo93':'Support',t:now(),x:v});
+  if(!note&&!t.firstResponseAt)t.firstResponseAt=now();
+  if(!note&&t.statut==='ouvert')t.statut='en_attente';
+  logAudit('A répondu au ticket '+id);save();
+  if(LIVE&&sb){sb.from('support_tickets').update({msgs:t.msgs,first_response_at:t.firstResponseAt?new Date(t.firstResponseAt).toISOString():null,statut:t.statut}).eq('id',id).then(()=>{});}
+  openTicket(id);renderTickets();updateBadges();
+  toast(note?'Note interne ajoutée':'Réponse envoyée','send');
+}
+function setTicket(id,field,val,fromBtn){
+  const t=S.tickets.find(x=>x.id===id);t[field]=val;
+  if(field==='statut'&&val==='resolu'&&!t.resolvedAt)t.resolvedAt=now();
+  if(field==='statut'&&val!=='resolu')t.resolvedAt=null;
+  logAudit('Ticket '+id+' · '+field+' → '+val);save();
+  if(LIVE&&sb){const upd={};upd[field]=val;if(field==='statut')upd.resolved_at=t.resolvedAt?new Date(t.resolvedAt).toISOString():null;sb.from('support_tickets').update(upd).eq('id',id).then(()=>{});}
+  if(fromBtn)openTicket(id);
+  renderTickets();updateBadges();
+  if(field==='statut'&&val==='resolu')toast('Ticket '+id+' résolu ✓','check');
+}
+function newTicket(){
+  const id='T-'+(1043+S.tickets.filter(t=>t.id.startsWith('T-10')).length);
+  S.tickets.unshift({id,sujet:'Nouveau ticket (à éditer)',user:'Client',email:'client@email.com',canal:'in-app',priorite:'normale',statut:'ouvert',assigne:'coach.kalo93',createdAt:now(),firstResponseAt:null,csat:null,msgs:[{f:'in',a:'Client',t:now(),x:'Décrivez le problème ici.'}]});
+  save();renderTickets();updateBadges();openTicket(id);toast('Ticket '+id+' créé','plus');
+}
+
+let userQ='';
+function renderUsers(){
+  const list=S.users.filter(u=>!userQ||(u.name+u.email).toLowerCase().includes(userQ.toLowerCase()));
+  const planB={annuel:'teal',mensuel:'blue',essai:'amber',gratuit:'gray'};
+  const stB={actif:'green',essai:'amber',inactif:'gray','annulé':'red'};
+  $('#page-users').innerHTML=`
+    <div class="panel"><div class="ph"><h3>Utilisateurs</h3><div class="pa"><button class="btn sm" onclick="exportCSV('users')">${ic('down')} Export CSV</button></div></div>
+      <div class="pb"><div class="filters"><input placeholder="Rechercher nom ou email…" value="${escapeHtml(userQ)}" oninput="userQ=this.value;renderUsers()" style="min-width:240px"/><span class="muted" style="margin-left:auto">${list.length} / ${S.users.length}</span></div>
+      <table><thead><tr><th>Utilisateur</th><th>Plan</th><th>Statut</th><th>Repas</th><th>Objectif</th><th>Inscrit</th><th>Dernier actif</th></tr></thead>
+      <tbody>${list.map(u=>`<tr onclick="openUser('${u.id}')">
+        <td><div class="u"><div class="ua" style="background:${avatarColor(u.name)}">${initials(u.name)}</div><div><div class="uname">${escapeHtml(u.name)}</div><div class="umail">${escapeHtml(u.email)} · ${u.pays}</div></div></div></td>
+        <td><span class="b ${planB[u.plan]}">${u.plan}</span></td>
+        <td><span class="b ${stB[u.statut]}">${u.statut}</span></td>
+        <td><b>${u.meals}</b></td>
+        <td class="muted">${({perte:'Perte',maintien:'Maintien',prise_masse:'Muscle'})[u.goal]}</td>
+        <td class="muted">il y a ${timeAgo(u.joined)}</td>
+        <td class="muted">il y a ${timeAgo(u.last)}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
+function openUser(id){
+  const u=S.users.find(x=>x.id===id);
+  drawer(`<div class="dh"><div class="u"><div class="ua" style="width:42px;height:42px;font-size:15px;background:${avatarColor(u.name)}">${initials(u.name)}</div><div><div style="font-weight:800;font-size:16px">${escapeHtml(u.name)}</div><div class="muted" style="font-size:12px">${escapeHtml(u.email)}</div></div></div><div class="x" onclick="closeDrawer()">${ic('x')}</div></div>
+  <div class="db">
+    <div class="sub-card">
+      <div class="kv"><span class="k">Plan</span><span class="v">${u.plan}</span></div>
+      <div class="kv"><span class="k">Statut</span><span class="v">${u.statut}</span></div>
+      <div class="kv"><span class="k">Objectif</span><span class="v">${({perte:'Perdre du poids',maintien:'Maintien',prise_masse:'Prise de muscle'})[u.goal]}</span></div>
+      <div class="kv"><span class="k">Repas loggés</span><span class="v">${u.meals}</span></div>
+      <div class="kv"><span class="k">Pays</span><span class="v">${u.pays}</span></div>
+      <div class="kv"><span class="k">Inscrit</span><span class="v">il y a ${timeAgo(u.joined)}</span></div>
+      <div class="kv"><span class="k">Dernier actif</span><span class="v">il y a ${timeAgo(u.last)}</span></div>
+      ${u.trialEnds?`<div class="kv"><span class="k">Fin d'essai</span><span class="v">dans ${durTxt(u.trialEnds-now())}</span></div>`:''}
+    </div>
+    <div class="sub-card"><label class="fl">Actions</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn pri sm" onclick="userAction('${u.id}','premium')">${ic('star')} Accorder Premium</button>
+        <button class="btn sm" onclick="userAction('${u.id}','reset')">${ic('refresh')} Réinit. MDP</button>
+        <button class="btn sm" onclick="userAction('${u.id}','message')">${ic('mail')} Message</button>
+        <button class="btn sm" onclick="userAction('${u.id}','suspend')">${ic('lock')} Suspendre</button>
+        <button class="btn danger sm" onclick="userAction('${u.id}','rgpd')">${ic('trash')} Supprimer (RGPD)</button>
+      </div>
+      <p class="muted" style="font-size:11.5px;margin:10px 0 0">Chaque action est tracée dans le journal d'audit.</p>
+    </div>
+  </div>`);
+}
+function userAction(id,a){
+  const u=S.users.find(x=>x.id===id);
+  const map={premium:['Premium accordé à '+u.name,()=>{u.plan='annuel';u.statut='actif';}],reset:['Email de réinitialisation envoyé',null],message:['Message envoyé à '+u.name,null],suspend:['Compte suspendu',()=>{u.statut='inactif';}],rgpd:['Demande de suppression RGPD créée',()=>{S.rgpd.unshift({id:'r'+now(),type:'Suppression',user:u.name,email:u.email,statut:'Nouveau',createdAt:now(),dueAt:hfromnow(30*24)});}]};
+  const m=map[a];if(m[1])m[1]();logAudit(m[0]);save();renderAll();
+  if(a==='rgpd'){closeDrawer();go('rgpd');}else{closeDrawer();}
+  toast(m[0],a==='rgpd'?'trash':'check');
+}
+
+function renderSubs(){
+  const u=S.users;const act=u.filter(x=>x.statut==='actif'&&x.plan!=='gratuit');
+  const mrr=act.reduce((a,x)=>a+(x.plan==='annuel'?3.33:7.99),0);
+  const arr=mrr*12;const churn=u.filter(x=>x.statut==='annulé').length;
+  $('#page-subs').innerHTML=`
+   <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+     <div class="kpi"><div class="k">MRR estimé</div><div class="v">${money(mrr)}</div><div class="d up">+18% vs M-1</div></div>
+     <div class="kpi"><div class="k">ARR estimé</div><div class="v">${money(arr)}</div><div class="d flat">annualisé</div></div>
+     <div class="kpi"><div class="k">Abonnés actifs</div><div class="v">${act.length}</div><div class="d flat">payants</div></div>
+     <div class="kpi"><div class="k">Churn (annulés)</div><div class="v">${churn}</div><div class="d down">à reconquérir</div></div>
+   </div>
+   <div class="banner mt" style="background:linear-gradient(100deg,#7c3aed,#a855f7)"><div class="bi">${ic('card')}</div><div style="flex:1"><b>Brancher RevenueCat pour le MRR réel.</b><p>Une fois les paiements live, ce module affichera tes vrais abonnements, renouvellements et remboursements.</p></div><a class="btn" style="background:rgba(255,255,255,.16);border-color:transparent;color:#fff" href="https://www.revenuecat.com" target="_blank">RevenueCat</a></div>
+   <div class="panel mt"><div class="ph"><h3>Abonnements</h3><div class="pa"><button class="btn sm" onclick="exportCSV('subs')">${ic('down')} Export</button></div></div>
+     <div class="pb"><table><thead><tr><th>Client</th><th>Plan</th><th>Statut</th><th>MRR</th><th>Prochaine échéance</th></tr></thead>
+     <tbody>${u.filter(x=>x.plan!=='gratuit').map(x=>`<tr onclick="openUser('${x.id}')"><td><div class="u"><div class="ua" style="width:26px;height:26px;font-size:11px;background:${avatarColor(x.name)}">${initials(x.name)}</div><div class="uname" style="font-size:13px">${escapeHtml(x.name)}</div></div></td>
+       <td><span class="b ${x.plan==='annuel'?'teal':'blue'}">${x.plan}</span></td>
+       <td><span class="b ${x.statut==='actif'?'green':x.statut==='essai'?'amber':'red'}">${x.statut}</span></td>
+       <td><b>${x.statut==='actif'?money(x.plan==='annuel'?3.33:7.99):'—'}</b></td>
+       <td class="muted">${x.statut==='essai'&&x.trialEnds?'fin essai dans '+durTxt(x.trialEnds-now()):x.statut==='actif'?'dans '+(x.plan==='annuel'?'~11 mois':'~3 sem.'):'—'}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
+
+function renderAnnounce(){
+  $('#page-announce').innerHTML=`
+   <div class="grid2">
+    <div class="panel"><div class="ph"><h3>Nouvelle annonce</h3></div><div class="pb">
+      <label class="fl">Titre</label><input id="an-t" placeholder="Ex : Nouveau scan du frigo 🥑"/>
+      <div class="row mt"><div><label class="fl">Type</label><select id="an-type"><option>In-app</option><option>Bannière</option><option>Push</option><option>Email</option></select></div>
+      <div><label class="fl">Segment</label><select id="an-seg"><option>Tous</option><option>Essai en cours</option><option>Premium</option><option>Inactifs 30j</option><option>Gratuits</option></select></div></div>
+      <label class="fl mt">Message</label><textarea id="an-x" rows="3" placeholder="Votre message…"></textarea>
+      <div class="row mt"><div><label class="fl">Planifier (optionnel)</label><input id="an-when" type="datetime-local"/></div></div>
+      <div style="display:flex;gap:8px;margin-top:12px"><button class="btn pri" onclick="addAnnounce(false)">${ic('send')} Publier</button><button class="btn" onclick="addAnnounce(true)">Brouillon</button></div>
+    </div></div>
+    <div class="panel"><div class="ph"><h3>Historique</h3></div><div class="pb">
+      ${S.announces.map(a=>`<div class="statusline"><div><div style="font-weight:700">${escapeHtml(a.titre)}</div><div class="muted" style="font-size:12px">${a.type} · ${a.segment} · ${a.when?(a.when>now()?'programmée dans '+durTxt(a.when-now()):'il y a '+timeAgo(a.when)):'—'}</div></div><span class="b ${a.statut==='Envoyée'?'green':a.statut==='Programmée'?'blue':'gray'}" style="margin-left:auto">${a.statut}</span></div>`).join('')}
+    </div></div>
+   </div>`;
+}
+function addAnnounce(draft){
+  const t=$('#an-t').value.trim();if(!t){toast('Ajoute un titre','flag');return;}
+  const when=$('#an-when').value?new Date($('#an-when').value).getTime():null;
+  S.announces.unshift({id:'a'+now(),titre:t,type:$('#an-type').value,segment:$('#an-seg').value,statut:draft?'Brouillon':(when?'Programmée':'Envoyée'),when:when||(draft?null:now()),txt:$('#an-x').value});
+  if(LIVE&&sb){sb.from('annonces').insert({titre:t,type:$('#an-type').value,segment:$('#an-seg').value,statut:draft?'Brouillon':(when?'Programmée':'Envoyée'),contenu:$('#an-x').value,scheduled_at:when?new Date(when).toISOString():null}).then(()=>{});}
+  logAudit('Annonce « '+t+' » '+(draft?'enregistrée':'publiée'));save();renderAnnounce();toast(draft?'Brouillon enregistré':'Annonce publiée','mega');
+}
+
+function renderContent(){
+  $('#page-content').innerHTML=`
+   <div class="grid2">
+    <div class="panel"><div class="ph"><h3>Défis & quêtes</h3><button class="btn pri sm" onclick="toast('Éditeur de défi (à venir)','plus')">${ic('plus')} Défi</button></div><div class="pb">
+      <table><thead><tr><th>Défi</th><th>Participants</th><th>Actif</th></tr></thead><tbody>
+      ${S.challenges.map((c,i)=>`<tr style="cursor:default"><td style="font-weight:700">${escapeHtml(c.n)}</td><td>${c.part}</td><td><div class="tg ${c.actif?'on':''}" onclick="S.challenges[${i}].actif=!S.challenges[${i}].actif;save();renderContent();"><i></i></div></td></tr>`).join('')}
+      </tbody></table></div></div>
+    <div class="panel"><div class="ph"><h3>Recettes & succès</h3></div><div class="pb">
+      <div class="statusline"><div><b>Recettes publiées</b><div class="muted" style="font-size:12px">filtrées par macros restantes</div></div><span class="b teal" style="margin-left:auto">24</span></div>
+      <div class="statusline"><div><b>Succès / badges</b><div class="muted" style="font-size:12px">10 paliers de progression</div></div><span class="b teal" style="margin-left:auto">10</span></div>
+      <div class="statusline"><div><b>Niveaux</b><div class="muted" style="font-size:12px">Débutant → Athlète</div></div><span class="b teal" style="margin-left:auto">8</span></div>
+      <button class="btn mt" onclick="toast('Gestion du contenu (démo)','bolt')">Gérer le contenu</button>
+    </div></div>
+   </div>`;
+}
+
+function renderModeration(){
+  const toReview=S.moderation.filter(m=>m.statut==='À revoir').length;
+  $('#page-moderation').innerHTML=`
+   <div class="panel"><div class="ph"><h3>File de modération</h3><span class="b ${toReview?'amber':'green'}">${toReview} à revoir</span></div>
+   <div class="pb"><table><thead><tr><th>Type</th><th>Objet</th><th>Signalé par</th><th>Quand</th><th>Statut</th><th></th></tr></thead><tbody>
+   ${S.moderation.map((m,i)=>`<tr style="cursor:default"><td><span class="b gray">${m.type}</span></td><td>${escapeHtml(m.obj)}</td><td class="muted">${m.par}</td><td class="muted">il y a ${timeAgo(m.when)}</td><td><span class="b ${m.statut==='À revoir'?'amber':m.statut==='Validé'?'green':'red'}">${m.statut}</span></td>
+     <td><div style="display:flex;gap:6px"><button class="btn sm" onclick="modAct(${i},'Validé')">${ic('check')}</button><button class="btn danger sm" onclick="modAct(${i},'Retiré')">${ic('trash')}</button></div></td></tr>`).join('')}
+   </tbody></table>${S.moderation.length?'':'<p class="muted" style="text-align:center;padding:20px">Rien à modérer 🎉</p>'}</div></div>`;
+}
+function modAct(i,s){S.moderation[i].statut=s;logAudit('Modération : '+s+' — '+S.moderation[i].obj);save();renderModeration();updateBadges();toast('Contenu '+s.toLowerCase(),s==='Validé'?'check':'trash');}
+
+function renderRgpd(){
+  $('#page-rgpd').innerHTML=`
+   <div class="banner" style="background:linear-gradient(100deg,#0e7c72,#14b8a6)"><div class="bi">${ic('lock')}</div><div style="flex:1"><b>Conformité RGPD — délai légal : 1 mois.</b><p>Les demandes d'accès et de suppression doivent être traitées sous 30 jours (extensible à 90j si complexe).</p></div></div>
+   <div class="panel"><div class="ph"><h3>Demandes (DSAR)</h3><div class="pa"><span class="b amber">${S.rgpd.filter(r=>r.statut!=='Traité').length} en attente</span></div></div>
+   <div class="pb"><table><thead><tr><th>Type</th><th>Personne</th><th>Reçue</th><th>Échéance légale</th><th>Statut</th><th></th></tr></thead><tbody>
+   ${S.rgpd.map((r,i)=>{const rem=r.dueAt-now();const late=rem<0&&r.statut!=='Traité';return `<tr style="cursor:default"><td><span class="b ${r.type==='Suppression'?'red':'blue'}">${r.type}</span></td>
+     <td><div class="uname" style="font-size:13px">${escapeHtml(r.user)}</div><div class="umail">${escapeHtml(r.email)}</div></td>
+     <td class="muted">il y a ${timeAgo(r.createdAt)}</td>
+     <td>${r.statut==='Traité'?'<span class="muted">—</span>':`<span class="b ${late?'red':rem<5*24*H?'amber':'gray'}">${late?'En retard':'dans '+durTxt(rem)}</span>`}</td>
+     <td><span class="b ${r.statut==='Traité'?'green':r.statut==='En cours'?'amber':'blue'}">${r.statut}</span></td>
+     <td>${r.statut!=='Traité'?`<button class="btn pri sm" onclick="rgpdDone(${i})">${ic('check')} Traiter</button>`:'✓'}</td></tr>`;}).join('')}
+   </tbody></table></div></div>
+   <div class="grid3 mt">
+     <div class="panel"><div class="pb"><div class="muted" style="font-size:11.5px;font-weight:800;text-transform:uppercase">Registre de consentement</div><div style="font-size:22px;font-weight:800;margin-top:6px">${S.users.length} entrées</div><div class="muted" style="font-size:12px">santé + CGU acceptées</div></div></div>
+     <div class="panel"><div class="pb"><div class="muted" style="font-size:11.5px;font-weight:800;text-transform:uppercase">Données hébergées</div><div style="font-size:22px;font-weight:800;margin-top:6px">UE 🇪🇺</div><div class="muted" style="font-size:12px">Supabase Francfort</div></div></div>
+     <div class="panel"><div class="pb"><div class="muted" style="font-size:11.5px;font-weight:800;text-transform:uppercase">Export utilisateur</div><button class="btn mt" onclick="exportCSV('users')">${ic('down')} Générer un export</button></div></div>
+   </div>`;
+}
+function rgpdDone(i){S.rgpd[i].statut='Traité';if(LIVE&&sb&&S.rgpd[i].id)sb.from('rgpd_requests').update({statut:'Traité'}).eq('id',S.rgpd[i].id).then(()=>{});logAudit('Demande RGPD traitée — '+S.rgpd[i].email);save();renderRgpd();updateBadges();toast('Demande RGPD traitée','check');}
+
+function renderAudit(){
+  $('#page-audit').innerHTML=`<div class="panel"><div class="ph"><h3>Journal d'audit</h3><div class="pa"><button class="btn sm" onclick="exportCSV('audit')">${ic('down')} Export</button></div></div>
+   <div class="pb"><table><thead><tr><th>Quand</th><th>Acteur</th><th>Action</th></tr></thead><tbody>
+   ${S.audit.map(a=>`<tr style="cursor:default"><td class="muted" style="white-space:nowrap">il y a ${timeAgo(a.when)}</td><td><span class="b ${a.who==='système'?'gray':'teal'}">${a.who}</span></td><td>${escapeHtml(a.act)}</td></tr>`).join('')}
+   </tbody></table></div></div>`;
+}
+function logAudit(act){S.audit.unshift({who:'coach.kalo93',act,when:now()});if(S.audit.length>200)S.audit.pop();if(typeof LIVE!=='undefined'&&LIVE&&sb)sb.from('audit_log').insert({acteur:'coach.kalo93',action:act}).then(()=>{});}
+
+function renderStatus(){
+  const allok=S.services.every(s=>s.s==='ok');
+  $('#page-status').innerHTML=`
+   <div class="banner" style="background:linear-gradient(100deg,${allok?'#0e7c72,#16a34a':'#a35a06,#d97706'})"><div class="bi">${ic('pulse')}</div><div style="flex:1"><b>${allok?'Tous les systèmes sont opérationnels.':'Un service demande attention.'}</b><p>Dernière vérification : à l'instant · mise à jour auto</p></div></div>
+   <div class="grid2">
+    <div class="panel"><div class="ph"><h3>Services</h3></div><div class="pb">
+      ${S.services.map(s=>`<div class="statusline"><span class="dot ${s.s==='ok'?'g':s.s==='warn'?'a':'r'}"></span><div style="flex:1"><b>${s.n}</b><div class="muted" style="font-size:12px">${s.d}</div></div><span class="b ${s.s==='ok'?'green':s.s==='warn'?'amber':'red'}">${s.s==='ok'?'Opérationnel':s.s==='warn'?'Dégradé':'Panne'}</span></div>`).join('')}
+    </div></div>
+    <div class="panel"><div class="ph"><h3>Quotas & limites</h3></div><div class="pb">
+      ${quota('Scans IA aujourd\'hui','312','1 500 / jour',312/1500)}
+      ${quota('Lignes BDD','8 240','500 000',8240/500000)}
+      ${quota('Stockage','42 Mo','1 Go',0.042)}
+      ${quota('Bande passante','0.6 Go','5 Go / mois',0.12)}
+    </div></div>
+   </div>
+   <div class="panel mt"><div class="ph"><h3>Incidents</h3></div><div class="pb">
+     ${S.incidents.map(i=>`<div class="statusline"><span class="dot ${i.s==='ok'?'g':'r'}"></span><div><b>${escapeHtml(i.t)}</b><div class="muted" style="font-size:12px">${escapeHtml(i.d)}</div></div></div>`).join('')}
+   </div></div>`;
+}
+function quota(n,v,lim,pct){return `<div style="padding:9px 0"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><b style="font-size:13px">${n}</b><span class="muted" style="font-size:12px">${v} · ${lim}</span></div><div class="progress"><i style="width:${Math.max(3,Math.round(pct*100))}%;background:${pct>0.8?'var(--red)':pct>0.5?'var(--amber)':'var(--teal)'}"></i></div></div>`;}
+
+function renderRoles(){
+  $('#page-roles').innerHTML=`
+   <div class="panel"><div class="ph"><h3>Administrateurs</h3><button class="btn pri sm" onclick="toast('Invitation admin (démo)','plus')">${ic('plus')} Inviter</button></div>
+   <div class="pb"><table><thead><tr><th>Email</th><th>Rôle</th><th>2FA</th><th>Dernière connexion</th></tr></thead><tbody>
+   ${S.roles.map(r=>`<tr style="cursor:default"><td style="font-weight:700">${r.who}</td><td><span class="b ${r.role==='Owner'?'violet':r.role==='Support'?'blue':'gray'}">${r.role}</span></td><td>${r.a2f?'<span class="b green">Activée</span>':'<span class="b amber">À activer</span>'}</td><td class="muted">il y a ${timeAgo(r.last)}</td></tr>`).join('')}
+   </tbody></table></div></div>
+   <div class="panel mt"><div class="ph"><h3>Matrice des permissions</h3></div><div class="pb">
+     <div class="perm">
+       <div class="h">Capacité</div><div class="h">Owner</div><div class="h">Support</div><div class="h">Lecture</div>
+       ${[['Voir les données','✓','✓','✓'],['Répondre aux tickets','✓','✓','—'],['Gérer les utilisateurs','✓','✓','—'],['Rembourser / facturation','✓','—','—'],['Publier des annonces','✓','✓','—'],['Gérer les rôles','✓','—','—'],['Réglages & flags','✓','—','—'],['Traiter RGPD','✓','✓','—']].map(r=>`<div style="font-weight:600">${r[0]}</div><div>${r[1]==='✓'?'<b style="color:var(--green)">✓</b>':'<span class="muted">—</span>'}</div><div>${r[2]==='✓'?'<b style="color:var(--green)">✓</b>':'<span class="muted">—</span>'}</div><div>${r[3]==='✓'?'<b style="color:var(--green)">✓</b>':'<span class="muted">—</span>'}</div>`).join('')}
+     </div></div></div>`;
+}
+
+function renderSettings(){
+  $('#page-settings').innerHTML=`
+   <div class="grid2">
+    <div class="panel"><div class="ph"><h3>Feature flags</h3></div><div class="pb">
+      ${S.flags.map((f,i)=>`<div class="flagrow"><div style="flex:1"><b>${escapeHtml(f.n)}</b><div class="muted" style="font-size:12px">${escapeHtml(f.d)} · <code>${f.k}</code></div></div><div class="tg ${f.on?'on':''}" onclick="toggleFlag(${i})"><i></i></div></div>`).join('')}
+    </div></div>
+    <div class="panel"><div class="ph"><h3>Paywall & prix</h3></div><div class="pb">
+      <div class="row"><div><label class="fl">Prix annuel (€)</label><input value="39,99"/></div><div><label class="fl">Prix mensuel (€)</label><input value="7,99"/></div></div>
+      <div class="row mt"><div><label class="fl">Durée d'essai (jours)</label><input value="7"/></div><div><label class="fl">Variante A/B active</label><select><option>Essai 7 jours (recommandé)</option><option>Essai 3 jours</option><option>Sans essai · -50%</option></select></div></div>
+      <button class="btn pri mt" onclick="logAudit('Réglages paywall modifiés');save();toast('Réglages enregistrés','check')">Enregistrer</button>
+    </div></div>
+   </div>
+   <div class="panel mt"><div class="ph"><h3>Intégrations</h3></div><div class="pb">
+     ${[['Supabase (BDD/Auth)','Connecté','green','jxmnzhyieikfdokkkbsz · EU (Irlande)'],['Google Gemini (scan IA)','Connecté','green','clé serveur active'],['RevenueCat (paiements)','Non connecté','amber','à brancher pour le MRR live'],['PostHog (analytics)','Non connecté','gray','optionnel'],['Sentry (erreurs)','Non connecté','gray','optionnel'],['Resend / Email','Non connecté','gray','support & notifications']].map(x=>`<div class="statusline"><div style="flex:1"><b>${x[0]}</b><div class="muted" style="font-size:12px">${x[3]}</div></div><span class="b ${x[2]}">${x[1]}</span></div>`).join('')}
+   </div></div>
+   <div class="panel mt"><div class="ph"><h3>Connexion aux données live</h3></div><div class="pb">
+     <p class="muted" style="margin-top:0">Ce cockpit fonctionne en <b>mode démo</b> (données locales). Pour afficher tes <b>vraies données</b>, on branche la connexion Supabase admin (login sécurisé + RLS). C'est la prochaine étape du chantier.</p>
+     <div class="row"><div><label class="fl">URL Supabase</label><input value="https://jxmnzhyieikfdokkkbsz.supabase.co" readonly/></div><div><label class="fl">Email admin</label><input value="coach.kalo93@gmail.com" readonly/></div></div>
+     <div style="margin-top:12px"><button class="btn dark" onclick="toast('Branchement live : étape suivante','bolt')">${ic('bolt')} Brancher les données live</button>
+     <button class="btn" onclick="resetData()" style="margin-left:8px">${ic('refresh')} Réinitialiser la démo</button></div>
+   </div></div>`;
+}
+function toggleFlag(i){S.flags[i].on=!S.flags[i].on;logAudit('Flag '+S.flags[i].k+' → '+(S.flags[i].on?'ON':'OFF'));save();renderSettings();toast(S.flags[i].n+' '+(S.flags[i].on?'activé':'désactivé'),'bolt');}
+
+function renderExports(){
+  $('#page-exports').innerHTML=`<div class="grid3">
+    ${[['Utilisateurs','Liste complète + plan, statut, activité','users'],['Tickets & SLA','File support + délais et CSAT','tickets'],['Abonnements','Plans, MRR, statuts','subs'],['Journal d\'audit','Toutes les actions admin','audit'],['Demandes RGPD','DSAR + échéances','rgpd']].map(x=>`<div class="panel"><div class="pb"><div style="font-weight:800;font-size:15px">${x[0]}</div><div class="muted" style="font-size:12.5px;margin:4px 0 12px">${x[1]}</div><button class="btn pri" onclick="exportCSV('${x[2]}')">${ic('down')} Exporter CSV</button></div></div>`).join('')}
+  </div>
+  <div class="panel mt"><div class="ph"><h3>Rapports planifiés</h3></div><div class="pb"><div class="statusline"><div style="flex:1"><b>Rapport hebdo par email</b><div class="muted" style="font-size:12px">KPIs + SLA chaque lundi 8h</div></div><div class="tg on"><i></i></div></div><div class="statusline"><div style="flex:1"><b>Alerte SLA dépassé</b><div class="muted" style="font-size:12px">notification dès qu'un ticket breach</div></div><div class="tg on"><i></i></div></div></div></div>`;
+}
+function exportCSV(kind){
+  let rows=[],name=kind;
+  if(kind==='users'){rows=[['Nom','Email','Plan','Statut','Repas','Objectif','Pays','Inscrit']].concat(S.users.map(u=>[u.name,u.email,u.plan,u.statut,u.meals,u.goal,u.pays,new Date(u.joined).toISOString().slice(0,10)]));}
+  else if(kind==='tickets'){rows=[['ID','Sujet','Demandeur','Email','Canal','Priorité','Statut','Créé','1ère réponse','Résolu','CSAT']].concat(S.tickets.map(t=>[t.id,t.sujet,t.user,t.email,t.canal,t.priorite,t.statut,new Date(t.createdAt).toISOString(),t.firstResponseAt?new Date(t.firstResponseAt).toISOString():'',t.resolvedAt?new Date(t.resolvedAt).toISOString():'',t.csat||'']));}
+  else if(kind==='subs'){rows=[['Client','Email','Plan','Statut']].concat(S.users.filter(u=>u.plan!=='gratuit').map(u=>[u.name,u.email,u.plan,u.statut]));}
+  else if(kind==='audit'){rows=[['Quand','Acteur','Action']].concat(S.audit.map(a=>[new Date(a.when).toISOString(),a.who,a.act]));}
+  else if(kind==='rgpd'){rows=[['Type','Personne','Email','Statut','Reçue','Échéance']].concat(S.rgpd.map(r=>[r.type,r.user,r.email,r.statut,new Date(r.createdAt).toISOString().slice(0,10),new Date(r.dueAt).toISOString().slice(0,10)]));}
+  const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='kalo_'+name+'_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+  logAudit('Export CSV : '+name);save();toast('Export '+name+' téléchargé','down');
+}
+
+function drawer(html){$('#drawerInner').innerHTML=html;$('#drawer').classList.add('show');$('#scrim').classList.add('show');}
+function closeDrawer(){$('#drawer').classList.remove('show');$('#scrim').classList.remove('show');}
+
+function updateBadges(){
+  const breach=S.tickets.filter(t=>slaState(t).breached).length;
+  const el=$('#nav-breach');if(el){el.textContent=breach;el.style.display=breach?'':'none';}
+  const eu=$('#nav-users');if(eu)eu.textContent=S.users.length;
+  const er=$('#nav-rgpd');if(er)er.textContent=S.rgpd.filter(r=>r.statut!=='Traité').length;
+  const bd=$('#bellDot');if(bd){bd.textContent=breach;bd.style.display=breach?'':'none';}
+}
+
+function renderAll(){renderDashboard();renderTickets();renderUsers();renderSubs();renderAnnounce();renderContent();renderModeration();renderRgpd();renderAudit();renderStatus();renderRoles();renderSettings();renderExports();updateBadges();}
+
+/* ===== Live data (Supabase admin, RLS) ===== */
+const SB_URL='https://jxmnzhyieikfdokkkbsz.supabase.co';
+const SB_KEY='sb_publishable_-qk9-acTMI0qnH9inTfkOQ_7KVNKCg8';
+let sb=null;
+try{ if(window.supabase&&window.supabase.createClient) sb=window.supabase.createClient(SB_URL,SB_KEY); }catch(e){}
+let LIVE=false, LIVEINFO={users:0,events:0,sessions:0,scans:0,meals:0,avgSession:0,byName:{}};
+function openLogin(){ $('#loginModal').style.display='block'; $('#loginScrim').classList.add('show'); }
+function closeLogin(){ $('#loginModal').style.display='none'; $('#loginScrim').classList.remove('show'); }
+async function doLogin(){
+  const err=$('#loginErr'); err.style.display='none';
+  if(!sb){ err.textContent='Librairie Supabase non chargée (vérifie ta connexion internet).'; err.style.display='block'; return; }
+  const email=$('#loginEmail').value.trim(), pw=$('#loginPw').value;
+  $('#loginBtn').textContent='Connexion…';
+  try{
+    const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+    if(error) throw error;
+    await loadLive();
+    if(!LIVE){ err.textContent="Connecté, mais ce compte n'est pas admin (aucune donnée visible)."; err.style.display='block'; }
+    else { closeLogin(); toast('Connecté en live · '+email,'bolt'); }
+  }catch(e){ err.textContent=(e&&e.message)||'Échec de connexion.'; err.style.display='block'; }
+  $('#loginBtn').textContent='Se connecter';
+}
+async function loadLive(){
+  if(!sb) return;
+  const { data: profs, error: pe } = await sb.from('profiles').select('id,email,objectif,created_at').order('created_at');
+  if(pe || !profs || !profs.length){ LIVE=false; return; }
+  const { data: evs } = await sb.from('events').select('name,user_id,props,ts').order('ts',{ascending:false}).limit(3000);
+  LIVE=true;
+  const mealsByUser={};
+  (evs||[]).forEach(e=>{ if(e.name==='meal_logged'&&e.user_id) mealsByUser[e.user_id]=(mealsByUser[e.user_id]||0)+1; });
+  S.users = profs.map(p=>{
+    const nm=(p.email||'?').split('@')[0].replace(/[._]/g,' ');
+    return { id:p.id, name:nm.charAt(0).toUpperCase()+nm.slice(1), email:p.email||'—', plan:'gratuit', statut:'actif', joined:new Date(p.created_at).getTime(), last:new Date(p.created_at).getTime(), meals:mealsByUser[p.id]||0, goal:p.objectif||'maintien', pays:'FR', trialEnds:null };
+  });
+  const byName={}; let sessSum=0,sessN=0;
+  (evs||[]).forEach(e=>{ byName[e.name]=(byName[e.name]||0)+1; if(e.name==='session_end'&&e.props&&e.props.duration_s){ sessSum+=e.props.duration_s; sessN++; } });
+  LIVEINFO={ users:profs.length, events:(evs||[]).length, sessions:byName['app_open']||0, scans:byName['scan_succeeded']||0, meals:byName['meal_logged']||0, avgSession: sessN?Math.round(sessSum/sessN):0, byName };
+  try {
+    const [tk, an, au, rg] = await Promise.all([
+      sb.from('support_tickets').select('*').order('created_at',{ascending:false}),
+      sb.from('annonces').select('*').order('created_at',{ascending:false}),
+      sb.from('audit_log').select('*').order('created_at',{ascending:false}).limit(100),
+      sb.from('rgpd_requests').select('*').order('created_at',{ascending:false}),
+    ]);
+    const toMs=(x)=>x?new Date(x).getTime():null;
+    if(tk.data&&tk.data.length){ S.tickets=tk.data.map(t=>({id:t.id,sujet:t.sujet,user:t.reporter_name||t.reporter_email||'Client',email:t.reporter_email||'',canal:t.canal||'in-app',priorite:t.priorite||'normale',statut:t.statut||'ouvert',assigne:t.assigne,createdAt:toMs(t.created_at)||Date.now(),firstResponseAt:toMs(t.first_response_at),resolvedAt:toMs(t.resolved_at),csat:t.csat,msgs:(t.msgs||[]).map(m=>({f:m.f||'in',a:m.a||'',t:m.t||toMs(t.created_at)||Date.now(),x:m.x||''}))})); }
+    if(an.data){ S.announces=an.data.map(a=>({id:a.id,titre:a.titre,type:a.type,segment:a.segment,statut:a.statut,when:a.scheduled_at?toMs(a.scheduled_at):toMs(a.created_at),txt:a.contenu})); }
+    if(au.data){ S.audit=au.data.map(a=>({who:a.acteur,act:a.action,when:toMs(a.created_at)||Date.now()})); }
+    if(rg.data){ S.rgpd=rg.data.map(r=>({id:r.id,type:r.type,user:r.personne,email:r.email,statut:r.statut,createdAt:toMs(r.created_at)||Date.now(),dueAt:toMs(r.due_at)})); }
+  } catch(e){}
+  const nm=$('#meNm'); if(nm){ $('#meNm').textContent='Données live'; $('#meRl').textContent=profs.length+' utilisateur(s)'; $('#meAv').textContent='●'; const mc=$('#meChip'); mc.style.cursor='default'; mc.onclick=null; }
+  const cs=$('#conn-state'); if(cs) cs.innerHTML='● Connecté en live (Supabase)';
+  renderAll();
+}
+
+/* INIT */
+buildNav();
+$('#searchIcon').innerHTML=ic('search');
+$('#bellIcon').innerHTML=ic('bell');
+$('#bell').addEventListener('click',()=>{go('tickets');ticketFilter={statut:'',priorite:'',canal:'',q:''};renderTickets();toast('Tickets en retard SLA en tête de file','clock');});
+$('#globalSearch').addEventListener('input',e=>{const v=e.target.value;userQ=v;ticketFilter.q=v;if($('#page-users').classList.contains('show'))renderUsers();else if($('#page-tickets').classList.contains('show'))renderTickets();});
+$('#globalSearch').addEventListener('keydown',e=>{if(e.key==='Enter'){go('users');renderUsers();}});
+$('#scrim').addEventListener('click',closeDrawer);
+
+setInterval(()=>{
+  if($('#page-tickets').classList.contains('show')||$('#page-dashboard').classList.contains('show')){
+    $$('[data-due]').forEach(el=>{const t=S.tickets.find(x=>x.id===el.getAttribute('data-due'));if(!t)return;const st=slaState(t);if(st.dueAt==null)return;el.innerHTML=(st.breached?'● En retard ':st.label+' dans ')+durTxt(st.rem);el.className='b '+(st.breached?'red':st.atRisk?'amber':'gray');el.setAttribute('data-due',t.id);});
+  }
+},1000);
+
+renderAll();
+go('dashboard');
+</script>
+</body
