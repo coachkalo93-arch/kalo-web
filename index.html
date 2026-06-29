@@ -365,11 +365,34 @@ const SEED={
     {who:'compta@velqora.com',role:'Lecture seule',a2f:true,last:hago(240)}
   ],
   flags:[
-    {n:'Scan du frigo (beta)',k:'fridge_scan',on:false,d:'Active la recette depuis une photo de frigo'},
-    {n:'Mode resto',k:'resto_mode',on:false,d:'Suggestions par enseigne'},
-    {n:'Parrainage',k:'referral',on:true,d:'Offre 1 mois / gagne 1 mois'},
-    {n:'Paywall A/B — essai 7j',k:'paywall_7d',on:true,d:'Variante essai 7 jours vs 3 jours'},
-    {n:'Mode maintenance',k:'maintenance',on:false,d:'Affiche un écran de maintenance dans l\'app'}
+    {n:"Défi public 7 jours",k:"defi_7j",on:false,d:"Challenge partageable (TikTok)"},
+    {n:"Avant / après",k:"avant_apres",on:false,d:"Timeline photo de progression"},
+    {n:"Profil public",k:"profil_public",on:false,d:"Vitrine de progression partageable"},
+    {n:"Cheat day intelligent",k:"cheat_day",on:false,d:"Rééquilibre la semaine"},
+    {n:"Recettes 10 min",k:"recettes_10min",on:true,d:"Filtrées par macros restantes"},
+    {n:"Repas auto par heure",k:"auto_categorie_repas",on:true,d:"Petit-déj/déj/dîner détectés"},
+    {n:"Hydratation météo",k:"hydratation_meteo",on:true,d:"Rappels selon la météo"},
+    {n:"Streak repair",k:"streak_repair",on:true,d:"Rachat d'une série cassée"},
+    {n:"Bilan du soir",k:"bilan_soir",on:true,d:"Récap d'Avo le soir (calories/eau/série)"},
+    {n:"Récompenses surprises",k:"recompenses",on:true,d:"Cadeau mystère quand les quêtes sont validées"},
+    {n:"Notifications push",k:"push",on:false,d:"Nécessite le build natif"},
+    {n:"Sync montre",k:"sync_montre",on:false,d:"Apple Health / Health Connect (build natif)"},
+    {n:"Widget accueil",k:"widget",on:false,d:"Build natif requis"},
+    {n:"Médicaments / compléments",k:"medicaments",on:false,d:"Sensible — cadrage conformité requis"},
+    {n:"Cycle menstruel",k:"cycle_menstruel",on:false,d:"Donnée sensible — consentement séparé"},
+    {n:"Mode diabète",k:"mode_diabete",on:false,d:"Prudence médicale — off par défaut"},
+    {n:"Plan famille",k:"plan_famille",on:false,d:"Abonnement multi-comptes"},
+    {n:"Codes promo / partenaires",k:"codes_promo",on:false,d:"Réductions marques partenaires"},
+    {n:"Avo évolue",k:"avo_evolue",on:true,d:"L'humeur d'Avo reflète l'état du jour"},
+    {n:"Easter eggs",k:"easter_eggs",on:true,d:"Avo se déguise aux fêtes"},
+    {n:"Humeur/énergie/sommeil",k:"mood_log",on:true,d:"Check-in quotidien bien-être (100% local)"},
+    {n:"Journal symptômes",k:"symptomes",on:true,d:"Ressenti digestion après repas (100% local)"},
+    {n:"Détection repas manqué",k:"repas_manque",on:true,d:"Rappel in-app doux (pas de push)"},
+    {n:"Scan ticket de caisse",k:"scan_ticket",on:true,d:"Photo du ticket → aliments détectés"},
+    {n:"Plan de la semaine",k:"plan_semaine",on:true,d:"Plan 7 jours + liste de courses"},
+    {n:"Estimation de portion",k:"estimation_portion",on:true,d:"Affine le scan via objets de référence"},
+    {n:"Coach qui apprend",k:"coach_apprend",on:true,d:"Préférences/allergies locales → conseils"},
+    {n:"Pollen + qualité de l'air",k:"pollen_air",on:true,d:"Brief enrichi (Open-Meteo, non médical)"}
   ]
 };
 
@@ -838,7 +861,7 @@ function renderSettings(){
      <button class="btn" onclick="resetData()" style="margin-left:8px">${ic('refresh')} Réinitialiser la démo</button></div>
    </div></div>`;
 }
-function toggleFlag(i){S.flags[i].on=!S.flags[i].on;logAudit('Flag '+S.flags[i].k+' → '+(S.flags[i].on?'ON':'OFF'));save();renderSettings();toast(S.flags[i].n+' '+(S.flags[i].on?'activé':'désactivé'),'bolt');}
+async function toggleFlag(i){S.flags[i].on=!S.flags[i].on;logAudit('Flag '+S.flags[i].k+' -> '+(S.flags[i].on?'ON':'OFF'));save();renderSettings();toast(S.flags[i].n+' '+(S.flags[i].on?'active':'desactive'),'bolt');if(sb&&LIVE){try{await sb.from('app_config').upsert({key:'flag.'+S.flags[i].k,value:S.flags[i].on,updated_at:new Date().toISOString()});}catch(e){toast('Ecriture cloud echouee','x');}}}
 
 function renderExports(){
   $('#page-exports').innerHTML=`<div class="grid3">
@@ -921,6 +944,7 @@ async function loadLive(){
     if(au.data){ S.audit=au.data.map(a=>({who:a.acteur,act:a.action,when:toMs(a.created_at)||Date.now()})); }
     if(rg.data){ S.rgpd=rg.data.map(r=>({id:r.id,type:r.type,user:r.personne,email:r.email,statut:r.statut,createdAt:toMs(r.created_at)||Date.now(),dueAt:toMs(r.due_at)})); }
   } catch(e){}
+  try { const cfg = await sb.from('app_config').select('key,value'); if(cfg && cfg.data){ const m={}; cfg.data.forEach(r=>{ if(r.key && r.key.indexOf('flag.')===0) m[r.key.slice(5)]=(r.value===true||r.value==='true'); }); S.flags.forEach(f=>{ if(f.k in m) f.on=m[f.k]; }); } } catch(e){}
   const nm=$('#meNm'); if(nm){ $('#meNm').textContent='Données live'; $('#meRl').textContent=profs.length+' utilisateur(s)'; $('#meAv').textContent='●'; const mc=$('#meChip'); mc.style.cursor='default'; mc.onclick=null; }
   const cs=$('#conn-state'); if(cs) cs.innerHTML='● Connecté en live (Supabase)';
   renderAll();
